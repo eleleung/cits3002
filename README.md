@@ -24,6 +24,6 @@ This provides us with two metrics; one is the total number of people who have vo
 
 Considerations for trust:
 * How to associate a given client with an already uploaded certificate?
-* Should only members of the circle be allowed to donload files? 
+* Should only members of the circle be allowed to download files? 
  
 
