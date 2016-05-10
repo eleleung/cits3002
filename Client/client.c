@@ -105,7 +105,7 @@ int write_file_to_server(int sockfd, const char filenm[]) {
 
 	bzero(buffer, BUFSIZE); // or memset?
 	while ((nbytes = fread(buffer, sizeof(char), BUFSIZE, fp)) > 0) {
-		if ((send(sockfd, buffer, nbytes, 0)) < 0) {
+		if ((SSL_write(ssl, buffer, nbytes, 0)) < 0) {
 			fprintf(stderr, RED "Error: failed to send file\n" RESET);
 			return EXIT_FAILURE;
 		}
@@ -126,7 +126,7 @@ int read_file_from_server(int sockfd, const char filenm[]) {
 	}
 	bzero(buffer, BUFSIZE);
 	int nbytes;
-	while ((nbytes = recv(sockfd, buffer, BUFSIZE, 0)) > 0) {
+	while ((nbytes = SSL_read(ssl, buffer, BUFSIZE, 0)) > 0) {
 		int writebytes = fwrite(buffer, sizeof(char), nbytes, fp);
 		if (writebytes < nbytes) {
 			fprintf(stderr, RED "File write failed\n" RESET);
