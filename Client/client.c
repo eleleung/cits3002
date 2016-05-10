@@ -221,8 +221,6 @@ int main(int argc, char * argv[]) {
 	// ShowCerts(ssl);
 	write_file_to_server(sockfd, "insta.jpg"); 
 
-	SSL_free(ssl); 
-
 	// get message line from user
 	printf("Please enter msg: ");
 	memset(buf, '\0', BUFSIZE);
@@ -247,6 +245,7 @@ int main(int argc, char * argv[]) {
 	// close connection
 	close(sockfd);
 	SSL_CTX_free(ctx);
+	SSL_free(ssl); 
 
 	return EXIT_SUCCESS;
 }
