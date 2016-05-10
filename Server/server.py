@@ -5,7 +5,7 @@ from OpenSSL import SSL
 import os
 
 def create_context():
-    ctx     = SSL.Context(SSL.TLSv1_2_METHOD)
+    ctx     = SSL.Context(SSL.SSLv3_METHOD)
 
     # check we have both a pkey and a cert and if found add them to the context
     try:
@@ -17,6 +17,7 @@ def create_context():
         except SSL.Error as error:
             print('server.cert could not be found \nPlace in directory: ' + str(config.root) + "\n", file=sys.stderr)
             sys.exit()
+        sys.exit()
     try:
         ctx.use_certificate_file(os.path.join(config.root, 'server.cert'))
     except SSL.Error as error:
@@ -26,7 +27,7 @@ def create_context():
     return ctx
 
 
-def runserver(port, file):
+def runserver(port):
     # create globals
     config.init()
 
@@ -47,9 +48,11 @@ def runserver(port, file):
 
     # courtesy statement
     print("Server running on: \nHost: " + host + "\nPort: " + port)
-    receive(encrypted_conn, file)
+    while 1==1:
+    #    send_file(encrypted_conn)
+        receive_file(encrypted_conn)
 
-def send_file(conn, file):
+def send_file(conn):
     # connect to client
     client, addr = conn.accept()
     conn.do_handshake()
@@ -64,6 +67,7 @@ def send_file(conn, file):
         client.send(data)
         data = send_file.read(config.payload_size)
     sendfile.close()
+    client.close()
 
 def receive_file(conn):
     # connect to client
@@ -80,7 +84,7 @@ def receive_file(conn):
         recv_file.write(data)
         data = client.recv(config.payload_size)
     recv_file.close()
-
+    client.close()
 
 # send data
 def receive(conn, data):
@@ -93,4 +97,4 @@ def receive(conn, data):
         client.send(bytes(data, "UTF-8"))
         client.close()
 
-runserver(sys.argv[1], sys.argv[2])
+runserver(sys.argv[1])
