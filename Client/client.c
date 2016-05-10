@@ -58,7 +58,7 @@ int connect_socket(const char *host, const char *port) {
 	hints.ai_socktype = SOCK_STREAM;
 
 	if ((x = getaddrinfo(host, port, &hints, &addr)) != 0) {
-		fprintf(stderr, "getaddrinfo failed: %s\n", gai_strerror(x));
+		fprintf(stderr, RED "getaddrinfo failed: %s %s\n", RESET, gai_strerror(x));
 		return -1;
 	}
 
