@@ -58,7 +58,7 @@ int connect_socket(const char *host, const char *port) {
 	hints.ai_socktype = SOCK_STREAM;
 
 	if ((x = getaddrinfo(host, port, &hints, &addr)) != 0) {
-		fprintf(stderr, RED "getaddrinfo failed: %s %s\n", RESET, gai_strerror(x));
+		fprintf(stderr, "getaddrinfo failed: %s\n", gai_strerror(x));
 		return -1;
 	}
 
@@ -100,20 +100,18 @@ int connect_socket(const char *host, const char *port) {
 // Send file to server
 int write_file_to_server(SSL *ssl, const char filenm[]) {
 	char buffer[BUFSIZE];
-	char filename[BUFSIZE];
 	int nbytes;
 
-	// send file name
-	printf("Client sending %s to the Server...\n", filenm);
-	strcpy(filename, filenm);
-	SSL_write(ssl, filename, strlen(filename));
-
 	// Check you can open file
-	FILE *fp = fopen(filenm, "r");
+	FILE *fp = fopen(filenm, "rb");
 	if (fp == NULL) {
 		fprintf(stderr, RED "File %s not found\n" RESET, filenm);
 		return EXIT_FAILURE;
 	}
+
+	// send file name
+	printf(BLUE "Client sending %s to the Server...%s\n", filenm, RESET);
+	SSL_write(ssl, filenm, strlen(filenm));
 
 	bzero(buffer, BUFSIZE);
 	while ((nbytes = fread(buffer, sizeof(char), BUFSIZE, fp)) > 0) {
@@ -122,6 +120,7 @@ int write_file_to_server(SSL *ssl, const char filenm[]) {
 			return EXIT_FAILURE;
 		}
 	}
+	fclose(fp);
 	printf(BLUE "File sent...%s\n", RESET);
 	return EXIT_SUCCESS;
 }
@@ -129,18 +128,17 @@ int write_file_to_server(SSL *ssl, const char filenm[]) {
 // Read file from server
 int read_file_from_server(SSL *ssl, const char filenm[]) {
 	char buffer[BUFSIZE];
-	char filename[BUFSIZE];
 
 	// receiving file name
-	printf("Client receiving %s from the Server...\n", filenm);
-	strcpy(filename, filenm);
-	SSL_write(ssl, filename, strlen(filename));
+	printf(BLUE "Client receiving %s from the Server...%s\n", RESET, filenm);
+	SSL_write(ssl, filenm, strlen(filenm));
 
 	FILE *fp = fopen(filenm, "a"); // a or w?
 	if (fp == NULL) {
 		fprintf(stderr, RED "File %s can't be opened\n" RESET, filenm);
 		return EXIT_SUCCESS;
 	}
+
 	bzero(buffer, BUFSIZE);
 	int nbytes;
 	while ((nbytes = SSL_read(ssl, buffer, BUFSIZE)) > 0) {
@@ -181,7 +179,7 @@ SSL_CTX * init_cert(void) {
 }
 
 // load certificate and keys
-void loadCert(SSL_CTX * ctx, char * cert, char * key) {
+void load_cert(SSL_CTX * ctx, char * cert, char * key) {
 	// load local cert 
 	if (SSL_CTX_use_certificate_file(ctx, cert, SSL_FILETYPE_PEM) != 1) {
 		ERR_print_errors_fp(stderr);
@@ -199,19 +197,59 @@ void loadCert(SSL_CTX * ctx, char * cert, char * key) {
 }
 
 int main(int argc, char * argv[]) {
-	int sockfd;
+	int sockfd, opt = 0;
 	char buf[BUFSIZE];
-	char menu[BUFSIZE];
+	char verify[100], veri[100], host[255]; // or char *host = malloc(strlen(host)+1);
 	SSL_CTX *ctx;
 	SSL *ssl;
 	
+	while ((opt = getopt(argc, argv, "a:c:f:h:ln:u:v:")) != -1) {
+		switch(opt) {
+			case 'a': 
+				printf(CYAN "%s %s\n", optarg, RESET);
+				break;
+			case 'c':
+				printf(CYAN "%s %s\n", optarg, RESET);
+				break;
+			case 'f':
+				printf(CYAN "%s %s\n", optarg, RESET);
+				break;
+			case 'h':
+				strcpy(host, optarg);
+				printf(CYAN "%s %s\n", optarg, RESET);
+				break;
+			case 'l':
+				printf(CYAN "list all files %s \n", RESET);
+				break;
+			case 'n':
+				printf(CYAN "%s %s\n", optarg, RESET);
+				break;
+			case 'u':
+				printf(CYAN "%s %s\n", optarg, RESET);
+				break;
+			case 'v':
+				strcpy(verify, optarg);
+				if (optind < argc && *argv[optind] != '-') {
+					strcpy(veri, argv[optind]);
+					optind++;
+				}
+				else {
+					fprintf(stderr, "-v command requires two arguments\n");
+				}
+				printf(CYAN "%s %s %s\n", verify, veri, RESET);
+				break;
+			default:
+				printf(MAGENTA "Usage: %s\n", RESET);
+		}
+	}
+
 	// Initialise OpenSSL and cert
 	SSL_library_init(); // load SSL encrpytion & hash algorithms
 	ctx = init_cert();
-	loadCert(ctx, "clientcert.pem", "clientkey.pem");
+	load_cert(ctx, "clientcert.pem", "clientkey.pem");
 
 	// call to create and connect socket
-	if ((sockfd = connect_socket(argv[1], SERVERPORT)) < 0) {
+	if ((sockfd = connect_socket(host, SERVERPORT)) < 0) {
 		return EXIT_FAILURE;
 	}
 	
@@ -224,7 +262,7 @@ int main(int argc, char * argv[]) {
 	}
 
 	// read_file_from_server(ssl, sockfd, "bookcpy.txt");
-	printf(GREEN "Connected with %s encryption %s\n", RESET, SSL_get_cipher(ssl));
+	printf(GREEN "Connected with %sencryption %s\n", RESET, SSL_get_cipher(ssl));
 	// ShowCerts(ssl);
 	write_file_to_server(ssl, "test.txt"); 
 	
