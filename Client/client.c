@@ -523,7 +523,7 @@ int main(int argc, char * argv[]) {
 					fprintf(stderr, RED "-c command failed %s\n", RESET);
 					break;
 				}
-				printf(CYAN "-c worked woo%s\n", RESET);					
+				printf(CYAN "-c worked woo%s\n", RESET);
 				break;
 			case 'f':
 				if ((fetch(ssl, "-f ", optarg)) != 0) {
@@ -548,7 +548,7 @@ int main(int argc, char * argv[]) {
 					ERR_print_errors_fp(stderr);
 					return EXIT_FAILURE;
 				}
-				printf(GREEN "Connected with %sencryption %s\n", RESET, SSL_get_cipher(ssl));
+				printf(GREEN "Connected with %s encryption %s\n", SSL_get_cipher(ssl), RESET);
 				break;
 			case 'l':
 				if ((list(ssl, "l")) != 0) {
