@@ -212,6 +212,20 @@ void load_cert(SSL_CTX *ctx, char *cert, char *key) {
     }
 }
 
+void print_bytes(const void *object, size_t size)
+{
+  const unsigned char * const bytes = object;
+
+  printf("[ ");
+  int count = 0;
+  while(bytes[count])
+  {
+    printf("%02x ", bytes[count]);
+    count++;
+  }
+  printf("]\n");
+}
+
 int evp_sign(SSL *ssl, char *rsa_pkey, char * filename) {
 	OpenSSL_add_all_digests();
 	ERR_load_crypto_strings();
@@ -264,7 +278,7 @@ int evp_sign(SSL *ssl, char *rsa_pkey, char * filename) {
 		EVP_PKEY_free(pkey);
 		return EXIT_FAILURE;
 	}
-
+	print_bytes(sign, sizeof(sign));
 	// send signature to server
 	if ((SSL_write(ssl, sign, (int)sign_len)) < 0) {
 		fprintf(stderr, RED "Error: failed to send signature\n" RESET);

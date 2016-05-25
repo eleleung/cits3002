@@ -20,21 +20,21 @@ def runserver(port):
     # set up the sockets
     host = socket.gethostname()
     try:
-        encrypted_conn.bind(("192.168.43.70", int(port)))
+        encrypted_conn.bind(("localhost", int(port)))
     except socket.error as msg:
-        print('Bind failed, socket error message: ' + str(msg))
+        print(config.pcolours.WARNING + 'Bind failed, socket error message: ' + str(msg))
         sys.exit()
     encrypted_conn.listen(config.backlog)
 
     # courtesy statement
-    print("Server running on: \nHost: " + host + "\nPort: " + port)
+    print(config.pcolours.OKBLUE + "Server running on: \nHost: " + host + "\nPort: " + port)
     while 1==1:
         acceptIncoming(encrypted_conn)
 
 def acceptIncoming(conn):
     # connect to client
-    print("accepting connection")
     client, addr = conn.accept()
+    print(config.pcolours.OKGREEN +"Accepting connection")
     client.do_handshake()
     try:
         command = client.recv(config.payload_size).decode()
