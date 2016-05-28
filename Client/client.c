@@ -31,20 +31,12 @@
 #define RED 		"\033[31m" 
 #define RESET 		"\033[0m"
 #define GREEN 		"\033[32m" 
-#define MAGENTA 	"\x1b[35m" // is free
+#define MAGENTA 	"\x1b[35m"
 #define CYAN    	"\x1b[36m"
 #define BLUE 		"\x1b[34m"
-#define YELLOW 	  	"\x1b[33m" // change yellow, ugly colour
 
 // global variables
 extern int optopt, optind;
-
-// void debug_print(char *function, char *message)
-
-typedef enum {
-	FALSE,
-	TRUE
-} BOOLEAN;
 
 // get sockaddr, IPv4 or IPv6
 void *get_in_addr(struct sockaddr *sa) {
@@ -118,10 +110,7 @@ int write_file_to_server(SSL *ssl, const char filenm[]) {
 		return EXIT_FAILURE;
 	}
 
-	/* send file name 
-	printf(BLUE "Client sending %s to the Server...%s\n", filenm, RESET);
-	SSL_write(ssl, filenm, strlen(filenm)); */
-
+	// read file into buffer and send buffer to server
 	bzero(buffer, BUFSIZE);
 	while ((nbytes = fread(buffer, sizeof(char), BUFSIZE, fp)) > 0) {
 		if ((SSL_write(ssl, buffer, nbytes)) < 0) {
@@ -137,6 +126,7 @@ int write_file_to_server(SSL *ssl, const char filenm[]) {
 // Read file from server
 int read_file_from_server(SSL *ssl, const char filenm[]) {
 	char buffer[BUFSIZE];
+	int nbytes;
 
 	// receiving file name
 	printf(BLUE "Client receiving %s from the Server...%s\n", RESET, filenm);
@@ -149,7 +139,7 @@ int read_file_from_server(SSL *ssl, const char filenm[]) {
 	}
 
 	bzero(buffer, BUFSIZE);
-	int nbytes;
+	// read file from server and write to file
 	while ((nbytes = SSL_read(ssl, buffer, BUFSIZE)) > 0) {
 		// fetch to stdout
 		fprintf(stdout, BLUE "%s%s", buffer, RESET);
@@ -209,6 +199,7 @@ void load_cert(SSL_CTX *ctx, char *cert, char *key) {
     }
 }
 
+// debugging print
 void print_bytes(const void *object, size_t size)
 {
   const unsigned char * const bytes = object;
@@ -228,12 +219,10 @@ int evp_sign(SSL *ssl, char *rsa_pkey, char *filename) {
 	ERR_load_crypto_strings();
 	FILE *file = fopen(filename, "rb");
 	FILE *rsa_pkey_file = fopen(rsa_pkey, "rb");
-	BOOLEAN flag = false;
 
 	EVP_PKEY * pkey = PEM_read_PrivateKey(rsa_pkey_file, NULL, NULL, NULL);
 	if (pkey == NULL) {
 		ERR_print_errors_fp(stderr);
-		// fprintf("Error loading RSA Private Key File");
 		return EXIT_FAILURE;
 	}
 	
@@ -279,8 +268,6 @@ int evp_sign(SSL *ssl, char *rsa_pkey, char *filename) {
 	}
 	print_bytes(sign, sizeof(sign));
 
-	flag = s_flag;
-
 	// send signature to server
 	if ((SSL_write(ssl, sign, (int)sign_len)) < 0) {
 		fprintf(stderr, RED "Error: failed to send signature\n" RESET);
@@ -306,7 +293,7 @@ char * concat(char *command, char *filename) {
 	else {
 		fprintf(stderr, RED "Malloc Failed %s\n", RESET);
 		free(cmd_and_file);
-		// exit
+		return "Error\n";
 	}
 	return cmd_and_file;
 }
@@ -314,10 +301,14 @@ char * concat(char *command, char *filename) {
 void expect_confirm(SSL *ssl) {
 	char confirm[BUFSIZE];
 	bzero(confirm, BUFSIZE);
-	if ((SSL_read(ssl, confirm, BUFSIZE)) <= 0) {
-		fprintf(stderr, RED "Confirmation not received%s\n", RESET);
+	int nbytes;
+
+	while ((nbytes = SSL_read(ssl, confirm, BUFSIZE)) > 0) {
+		fprintf(stdout, MAGENTA "%s%s", confirm, RESET);
 	}
-	printf(YELLOW "%s%s\n", confirm, RESET);
+	if (nbytes <= 0) {
+		fprintf(stderr, RED "Nothing from server%s\n", RESET);
+	}
 }
 
 int add_or_replace(SSL *ssl, char *command, char *rsa_pkey, char *filename) {
@@ -335,7 +326,7 @@ int add_or_replace(SSL *ssl, char *command, char *rsa_pkey, char *filename) {
 	}
 
 	// debug print
-	printf(YELLOW "Command and filename successfully sent!%s\n", RESET);
+	printf(MAGENTA "Command and filename successfully sent!%s\n", RESET);
 
 	// receive confirmation from server
 	expect_confirm(ssl);
@@ -365,7 +356,7 @@ int fetch(SSL *ssl, char *command, char *filename, char *circleNum, char *vouchN
 	char *cmd_and_file = concat(string4, vouchName);
 
 	printf("%s\n",cmd_and_file);
-	/*
+	
 	int length = strlen(cmd_and_file)+1;
 
 	// send command+filename to server
@@ -376,14 +367,14 @@ int fetch(SSL *ssl, char *command, char *filename, char *circleNum, char *vouchN
 	}
 
 	// debug print
-	printf(YELLOW "Command and filename successfully sent!%s\n", RESET);
+	printf(MAGENTA "Command and filename successfully sent!%s\n", RESET);
 
 	// receive confirmation from server
 	expect_confirm(ssl);
 
 	// need to change to stdout
 	read_file_from_server(ssl, filename);
-	*/
+	
 	free(string1);
 	free(string2);
 	free(string3);
@@ -424,7 +415,7 @@ int upload_cert(SSL *ssl, char *command, char *cert) {
 	}
 
 	// debug print
-	printf(YELLOW "Command and cert successfully sent!%s\n", RESET);
+	printf(MAGENTA "Command and cert successfully sent!%s\n", RESET);
 
 	// receive confirmation from server
 	expect_confirm(ssl);
@@ -466,13 +457,13 @@ int vouch_file(SSL *ssl, char *command, char *filename, char *rsa_pkey, char *ce
 	}
 
 	// debug print
-	printf(YELLOW "Command and filename successfully sent!%s\n", RESET);
+	printf(MAGENTA "Command and filename successfully sent!%s\n", RESET);
 
 	read_file_from_server(ssl, filename);
 
 	// call -u and upload cert
-	SSL_write(ssl, "-u", strlen("-u")+1);
-	write_file_to_server(ssl, cert);
+	//SSL_write(ssl, "-u", strlen("-u")+1);
+	//write_file_to_server(ssl, cert);
 
 	// sign file - need strlen of file to be sent
 	//BOOLEAN flag = TRUE;
@@ -490,9 +481,7 @@ int vouch_file(SSL *ssl, char *command, char *filename, char *rsa_pkey, char *ce
 }
 
 int main(int argc, char * argv[]) {
-	int sockfd, opt = 0;
-	int count = 0, count2 = 0, count3 = 0;
-	char buf[BUFSIZE];
+	int sockfd, opt = 0, count = 0;
 	char filename[100], cert[100], host[255]; // or char *host = malloc(strlen(host)+1);
 	char command[MAXSTR][2];
 	char paramValue[MAXSTR][MAXLEN] = {{0}};
