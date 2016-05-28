@@ -493,12 +493,12 @@ int main(int argc, char * argv[]) {
 	SSL *ssl;
 	SSL_library_init(); // load SSL encrpytion & hash algorithms
 	ctx = init_cert();
-	load_cert(ctx, "clientcert.pem", "clientkey.pem");
+	load_cert(ctx, "mycert.pem", "mykey.pem");
 
 	while ((opt = getopt(argc, argv, "a:c:f:h:ln:s:u:v:")) != -1) {
 		switch(opt) {
 			case 'a': 
-				if ((add_or_replace(ssl, "-a ", "clientkey.pem", optarg)) != 0) {
+				if ((add_or_replace(ssl, "-a ", "mykey.pem", optarg)) != 0) {
 					fprintf(stderr, RED "-a command failed %s\n", RESET);
 					break;
 				}
