@@ -4,12 +4,19 @@ import config
 from OpenSSL import SSL, crypto
 import verify
 
+def ByteToHex( byteStr ):
+    hex = []
+    for aChar in byteStr:
+        hex.append( "%02X " % ord( aChar ) )
+    return ''.join( hex ).strip()
+
 def send_file(client, filename, largestCircle, size):
     filePath = os.path.join(config.storage, filename)
     print(config.pcolours.OKBLUE + "filename is :" + filePath)
     sent_file = open(filePath.strip("\x00"), "rb")
-    data = "Circle of circumference " + str(largestCircle) + "\nContaining all requested names"
-    client.send(data)
+    #data = "Circle of circumference " + str(largestCircle) + "\nContaining all requested names"
+    #data.ljust(1024, " ")
+    #client.send(data)
     data = verify.sign(filename)
     while data:
         client.send(data)
@@ -24,7 +31,7 @@ def receive_file(client, filename, root, size):
     # write data to file
     try:
         signature = client.recv(config.payload_size)
-        print(signature)
+        print(ByteToHex(signature))
     except SSL.SysCallError as msg:
         print(config.pcolours.WARNING +"First frame is end of file ssl error:" + str(msg))
         return(-1)

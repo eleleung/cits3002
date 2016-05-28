@@ -33,6 +33,8 @@ def sign(filename):
     filePath = os.path.join(config.storage, filename)
     dataFile = open(filePath.strip("\x00"), "rb")
     signature = crypto.sign(pkey, dataFile.read(), config.digest)
+    with open("sig.txt", "wb+") as sig:
+        sig.write(signature)
     dataFile.close()
     with open(os.path.join(config.root, 'server.cert')) as certFile:
         print(verify(filename, crypto.load_certificate(crypto.FILETYPE_PEM, certFile.read()), signature))

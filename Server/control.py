@@ -34,6 +34,7 @@ def parse(command, client):
                 fileOperations.send_file(client, command[(command.index("-f") + 1)], largestCircle, command[len(command) - 1])
             else:
                 client.send(config.pcolours.FAIL + "ERROR: Circle of insufficient size")
+                client.close()
     if "-l" in command:
         fileOperations.listFiles(command[(command.index("-l") + 1)])
     if "-u" in command:

@@ -4,19 +4,32 @@ import config
 import pickle
 import OpenSSL
 
-def makeCircle(name):
+def getIssuerName(cert):
+    for pair in cert.get_issuer().get_subject():
+            if pair[0] == "CN":
+                return pair[0]
 
+def getNextCert(name):
+    with open(os.path.join(config.certs, name + ".cert"), "r") as certFile:
+        certObject = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, certFile)
+        with open(os.path.join(config.certs, getIssuerName() + ".crt"), "r") as nextCertFile:
+            nextCertObject = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, certFile)
+
+        return getIssuerName(nextCertObject)
+
+def makeCircle(name):
+    circle = []
     currentCertObject = []
     with open(os.path.join(config.certs, name + ".cert"), "r") as certFile:
-        firstCertObject = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, certFile)
-        firstIssuer = "test"
-    while firstCertObject != currentCertObject:
-        with open(os.path.join(config.certs,  + ".cert"), "r") as certFile:
-            certObject = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, certFile)
-            for pair in certObject.get_issuer().get_subject():
-                    if pair[0] == "CN":
-                        with open(os.path.join(config.certs, vouch[0] + ".crt"), "r") as nextCertFile:
-                            nextCertObject = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, certFile)
+        firstCert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, certFile)
+        issuer = getIssuerName(firstCert)
+    i = 1
+    circle.append(issuer)
+    cert = getNextCert(issuer)
+    while cert != firstCertName:
+        cert = getNextCert(cert)
+        circle.append(cert)
+    return circle
 
 def genCircles(filename, minCircleSize):
     vouches = checkVouches(filename)
@@ -24,10 +37,6 @@ def genCircles(filename, minCircleSize):
     return[[1,1,1,1,1,1]]
     for vouch in vouches:
         circles.append(makeCircle(vouch[0]))
-
-
-
-
 
 def applySignature(filename, signature, cert):
     previousVouches = []
