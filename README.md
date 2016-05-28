@@ -2,7 +2,7 @@
 
 ## A Secure File Server
 
-This project needs to create a file server/client pair that uses ssl for encryption. 
+This project needs to create a file server/client pair that uses openSSL for encryption.
 
 The following commands need to be implemented:
 * -a filename 		: add or replace a file on the oldtrusty server
@@ -16,14 +16,12 @@ The following commands need to be implemented:
 
 ## The Circle Of Trust Model
 
-A circle of certificates are generated much the same as a chain of certificates. The main difference is instead of forming a heirarchy the initial certificate that was self signed is replaced by a certificate signed by the last member of the chain hence forming a circle. 
+A circle of certificates are generated much the same as a chain of certificates. The main difference is instead of forming a hierarchy the initial certificate that was self signed is replaced by a certificate signed by the last member of the chain hence forming a circle.
 
-Files are verified by a member of a circle of trust vouching for that file. If one member vouches for it then, given that everyone in the circle trusts everyone else, the file is considered verfied by a circle with a circumference equal to the number of members in the circle. 
+Files are verified by a member of a circle of trust vouching for that file. If one member vouches for it then, given that everyone in the circle trusts everyone else, the file is considered verified by a circle with a circumference equal to the number of members in the circle.
 
-This provides us with two metrics; one is the total number of people who have vouched for the file, and the second is the circumference of the circle of people who indirectly trust that file. 
+This provides us with two metrics; one is the total number of people who have vouched for the file, and the second is the circumference of the circle of people who indirectly trust that file.
 
 Considerations for trust:
 * How to associate a given client with an already uploaded certificate?
-* Should only members of the circle be allowed to download files? 
- 
-
+* Should only members of the circle be allowed to download files?

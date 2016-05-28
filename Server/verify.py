@@ -1,6 +1,6 @@
+import os
 import socket
 import config
-import sys
 from OpenSSL import crypto
 import os
 import fileOperations
@@ -16,15 +16,24 @@ def checkcerts(connection, x509, errnum, errdepth, ok):
 def verify(filename, cert, signature):
     filePath = os.path.join(config.storage, filename)
     dataFile = open(filePath.strip("\x00"), "rb")
-    result = crypto.verify(cert, signature, dataFile.read(), config.digest)
+    try:
+        result = crypto.verify(cert, signature, dataFile.read(), config.digest)
+    except OpenSSL.crypto.Error:
+        result = True
     dataFile.close()
-    return result
+    print(result)
+    if result == None:
+        return True
+    else:
+        return False
 
 def sign(filename):
     with open(os.path.join(config.root, 'server.pkey')) as certFile:
-        pkey = crypto.load_privatekey(crypto.FILETYPE_PEM, certFile.read(), "cits3002")
+        pkey = crypto.load_privatekey(crypto.FILETYPE_PEM, certFile.read())
     filePath = os.path.join(config.storage, filename)
     dataFile = open(filePath.strip("\x00"), "rb")
     signature = crypto.sign(pkey, dataFile.read(), config.digest)
     dataFile.close()
+    with open(os.path.join(config.root, 'server.cert')) as certFile:
+        print(verify(filename, crypto.load_certificate(crypto.FILETYPE_PEM, certFile.read()), signature))
     return signature

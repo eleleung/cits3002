@@ -1,8 +1,8 @@
+import os
+import sys
 import socket
 import config
-import sys
 from OpenSSL import SSL
-import os
 import verify
 
 def create_context():

@@ -1,35 +1,26 @@
+import os
+import sys
+sys.path.append(os.path.join(os.getcwd(), "external_modules"))
+sys.path.append(os.path.join(os.getcwd(), "external_modules","OpenSSL"))
 import socket
 import config
-import sys
 from OpenSSL import SSL
 import os
 import fileOperations
 import SSLOperations
+import networkOperations
 import shlex
 import verify
+import control
 
-def runserver(port):
+def runserver():
     # create globals
     config.init()
     ctx = SSLOperations.create_context()
     # connect socket
-    conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    # wrap socket
-    encrypted_conn = SSL.Connection(ctx, conn)
-    encrypted_conn.set_accept_state()
-    # set up the sockets
-    host = socket.gethostname()
-    try:
-        encrypted_conn.bind(("localhost", int(port)))
-    except socket.error as msg:
-        print(config.pcolours.WARNING + 'Bind failed, socket error message: ' + str(msg))
-        sys.exit()
-    encrypted_conn.listen(config.backlog)
-
-    # courtesy statement
-    print(config.pcolours.OKBLUE + "Server running on: \nHost: " + host + "\nPort: " + port)
-    while 1==1:
-        acceptIncoming(encrypted_conn)
+    socketSSL = networkOperations.createSSL(ctx)
+    while True:
+        acceptIncoming(socketSSL)
 
 def acceptIncoming(conn):
     # connect to client
@@ -41,10 +32,7 @@ def acceptIncoming(conn):
     except SSL.SysCallError as msg:
         print("No command received, ssl error:" + str(msg))
         return(-1)
-    client.send("Confirm".ljust(1024))
     command = shlex.split(command)
-    filename = command[(command.index("-a") + 1)]
-    print(filename)
-    fileOperations.receive_file(client, filename)
+    control.parse(command, client)
 
-runserver(sys.argv[1])
+runserver()

@@ -1,4 +1,6 @@
 import os
+import sys
+
 def init():
     global backlog
     backlog = 5
@@ -7,11 +9,18 @@ def init():
     global root
     root = os.getcwd()
     global storage
-    storage = os.path.join(os.getcwd(), "data_storage")
+    storage = os.path.join(os.getcwd(), "root")
     global certs
     certs = os.path.join(os.getcwd(), "cert_storage")
     global digest
     digest = "sha256"
+    global ERROR
+    ERROR = "\x00"
+    global defaultCircumference
+    defaultCircumference = 0
+    global port
+    port = 1234
+
 
 class pcolours:
     HEADER = '\033[95m'
