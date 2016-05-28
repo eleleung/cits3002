@@ -22,9 +22,11 @@
 #include <openssl/x509.h>
 #include <openssl/x509_vfy.h>
 
-#define SERVERPORT 	"3434" // the port client will be connecting to
+#define SERVERPORT 	"1234" // the port client will be connecting to
 
 #define BUFSIZE 1024 // max no. of bytes we can get at once
+#define MAXSTR 20 
+#define MAXLEN 1024
 
 #define RED 		"\033[31m" 
 #define RESET 		"\033[0m"
@@ -34,20 +36,15 @@
 #define BLUE 		"\x1b[34m"
 #define YELLOW 	  	"\x1b[33m" // change yellow, ugly colour
 
-// flags so order of parsing of cmd line is fixed
-#define flaga = 0x0001; 
-#define flagc = 0x0002;
-#define flagf = 0x0003;
-#define flagh = 0x0004;
-#define flagl = 0x0005;
-#define flagn = 0x0006;
-#define flagu = 0x0007;
-#define flagv = 0x0008;
-
 // global variables
 extern int optopt, optind;
 
 // void debug_print(char *function, char *message)
+
+typedef enum {
+	FALSE,
+	TRUE
+} BOOLEAN;
 
 // get sockaddr, IPv4 or IPv6
 void *get_in_addr(struct sockaddr *sa) {
@@ -127,7 +124,6 @@ int write_file_to_server(SSL *ssl, const char filenm[]) {
 
 	bzero(buffer, BUFSIZE);
 	while ((nbytes = fread(buffer, sizeof(char), BUFSIZE, fp)) > 0) {
-		printf("%s\n", buffer);
 		if ((SSL_write(ssl, buffer, nbytes)) < 0) {
 			fprintf(stderr, RED "Error: failed to send file\n" RESET);
 			return EXIT_FAILURE;
@@ -157,13 +153,14 @@ int read_file_from_server(SSL *ssl, const char filenm[]) {
 	while ((nbytes = SSL_read(ssl, buffer, BUFSIZE)) > 0) {
 		// fetch to stdout
 		fprintf(stdout, BLUE "%s%s", buffer, RESET);
+		// if 0 then 
 		int writebytes = fwrite(buffer, sizeof(char), nbytes, fp);
 		if (writebytes < nbytes) {
 			fprintf(stderr, RED "File write failed\n" RESET);
 		}
 		bzero(buffer, BUFSIZE);
 		if (nbytes == 0) {
-			// TODO fill with appropriate msg
+			fprintf(stderr, RED "No file found\n" RESET);
 			break;
 		}
 	}
@@ -226,11 +223,12 @@ void print_bytes(const void *object, size_t size)
   printf("]\n");
 }
 
-int evp_sign(SSL *ssl, char *rsa_pkey, char * filename) {
+int evp_sign(SSL *ssl, char *rsa_pkey, char *filename) {
 	OpenSSL_add_all_digests();
 	ERR_load_crypto_strings();
 	FILE *file = fopen(filename, "rb");
-	FILE *rsa_pkey_file = fopen(rsa_pkey, "r"); // not sure if this will work...
+	FILE *rsa_pkey_file = fopen(rsa_pkey, "rb");
+	BOOLEAN flag = false;
 
 	EVP_PKEY * pkey = PEM_read_PrivateKey(rsa_pkey_file, NULL, NULL, NULL);
 	if (pkey == NULL) {
@@ -261,8 +259,9 @@ int evp_sign(SSL *ssl, char *rsa_pkey, char * filename) {
 		fprintf(stderr, RED "Error: Couldn't malloc memory%s\n", RESET);
 		EVP_PKEY_free(pkey);
 		return EXIT_FAILURE;
-	}
+	}	
 
+	// update signature 
 	while (data_len > 0) {
 		if (!EVP_SignUpdate(md_ctx, data, data_len)) {
 			fprintf(stderr, "Error: EVP_SignUpdate failed%s\n", RESET);
@@ -279,18 +278,14 @@ int evp_sign(SSL *ssl, char *rsa_pkey, char * filename) {
 		return EXIT_FAILURE;
 	}
 	print_bytes(sign, sizeof(sign));
+
+	flag = s_flag;
+
 	// send signature to server
 	if ((SSL_write(ssl, sign, (int)sign_len)) < 0) {
 		fprintf(stderr, RED "Error: failed to send signature\n" RESET);
 		return EXIT_FAILURE;
 	}
-
-	/* set file position to beginning of file - will overwrite file?
-	fseek(filename, 0, SEEK_SET);
-	if (sign_len > 0) {
-		fwrite(sign, sign_len, 1, filename);
-	}
-	*/
 
 	EVP_MD_CTX_destroy(md_ctx);
 	free(sign);
@@ -359,34 +354,18 @@ int add_or_replace(SSL *ssl, char *command, char *rsa_pkey, char *filename) {
 	return EXIT_SUCCESS;
 }
 
-int req_circ(SSL *ssl, char *command, char *circ) {
-	printf(CYAN "%s %s\n", circ, RESET);
-
-	char * cmd_and_arg = concat(command, circ);
-	int length = strlen(cmd_and_arg)+1;
-
-	// send to server
-	if ((SSL_write(ssl, cmd_and_arg, length)) < 0) {
-		fprintf(stderr, RED "Error: failed to send arg\n" RESET);
-		free(cmd_and_arg);
-		return EXIT_FAILURE;
-	}
-
-	// debug print
-	printf(YELLOW "Command and arg successfully sent!%s\n", RESET);
-
-	// receive confirmation from server
-	expect_confirm(ssl);
-
-	free(cmd_and_arg);
-	return EXIT_SUCCESS;
-}
-
-int fetch(SSL *ssl, char *command, char *filename) {
+int fetch(SSL *ssl, char *command, char *filename, char *circleNum, char *vouchName) {
 	printf(CYAN "%s %s\n", filename, RESET);
 
 	// concat. command and filename
-	char *cmd_and_file = concat(command, filename);
+	char *string1 = concat(command, filename);
+	char *string2 = concat(string1, " -c ");
+	char *string3 = concat(string2, circleNum);
+	char *string4 = concat(string3, " -n ");
+	char *cmd_and_file = concat(string4, vouchName);
+
+	printf("%s\n",cmd_and_file);
+	/*
 	int length = strlen(cmd_and_file)+1;
 
 	// send command+filename to server
@@ -404,7 +383,11 @@ int fetch(SSL *ssl, char *command, char *filename) {
 
 	// need to change to stdout
 	read_file_from_server(ssl, filename);
-
+	*/
+	free(string1);
+	free(string2);
+	free(string3);
+	free(string4);
 	free(cmd_and_file);
 	return EXIT_SUCCESS;
 }
@@ -419,34 +402,10 @@ int list(SSL *ssl, char *command) {
 		return EXIT_FAILURE;
 	}
 
-	// receive confirmation from server
+	// receive confirmation from server - not restricted to 1024
 	expect_confirm(ssl);
 
 	free(command);
-	return EXIT_SUCCESS;
-}
-
-int req_name(SSL *ssl, char *command, char *cert) {
-	printf(CYAN "%s %s\n", cert, RESET);
-
-	// concat. command and filename
-	char *cmd_and_cert = concat(command, cert);
-	int length = strlen(cmd_and_cert)+1;
-
-	// send command+filename to server
-	if ((SSL_write(ssl, cmd_and_cert, length)) < 0) {
-		fprintf(stderr, RED "Error: failed to send file\n" RESET);
-		free(cmd_and_cert);
-		return EXIT_FAILURE;
-	}
-
-	// debug print
-	printf(YELLOW "Command and cert successfully sent!%s\n", RESET);
-
-	// receive confirmation from server
-	expect_confirm(ssl);
-
-	free(cmd_and_cert);
 	return EXIT_SUCCESS;
 }
 
@@ -470,81 +429,100 @@ int upload_cert(SSL *ssl, char *command, char *cert) {
 	// receive confirmation from server
 	expect_confirm(ssl);
 
+	// write cert to server
+	write_file_to_server(ssl, cert);
+
 	free(cmd_and_cert);
 	return EXIT_SUCCESS;
 }
 
-// clean up
-int verify_file(SSL *ssl, char *command, char *filename, char *cert) {
+// fetch and then send signature
+int vouch_file(SSL *ssl, char *command, char *filename, char *rsa_pkey, char *cert) {
 	printf(CYAN "%s %s %s\n", filename, cert, RESET);
 
 	// send concat-ed string
-	char *cmd_and_args;
+	// snprintf(prefix, sizeof(prefix), "%s: %s: %s", argv[0], cmd_argv[0], cmd_argv[1]);
+	char *cmd_and_file;
 	int length = strlen(command)+strlen(filename)+strlen(cert)+1;
 
-	if ((cmd_and_args = malloc(length)) != NULL) {
-		bzero(cmd_and_args, (length));
-		strcat(cmd_and_args, command);
-		strcat(cmd_and_args, filename);
-		strcat(cmd_and_args, " ");
-		strcat(cmd_and_args, cert);
+	if ((cmd_and_file = malloc(length)) != NULL) {
+		bzero(cmd_and_file, (length));
+		strcat(cmd_and_file, command);
+		strcat(cmd_and_file, filename);
+		strcat(cmd_and_file, " ");
+		strcat(cmd_and_file, cert);
 	}
 	else {
 		fprintf(stderr, RED "Malloc Failed %s\n", RESET);
-		free(cmd_and_args);
+		free(cmd_and_file);
+		// exit
 	}
 
 	// send to server
-	if ((SSL_write(ssl, cmd_and_args, length)) < 0) {
-		fprintf(stderr, RED "Error: failed to send file\n" RESET);
-		free(cmd_and_args);
+	if ((SSL_write(ssl, cmd_and_file, length)) < 0) {
+		fprintf(stderr, RED "Error: failed to send command\n" RESET);
+		free(cmd_and_file);
 		return EXIT_FAILURE;
 	}
 
 	// debug print
-	printf(YELLOW "Command and cert successfully sent!%s\n", RESET);
+	printf(YELLOW "Command and filename successfully sent!%s\n", RESET);
+
+	read_file_from_server(ssl, filename);
+
+	// call -u and upload cert
+	SSL_write(ssl, "-u", strlen("-u")+1);
+	write_file_to_server(ssl, cert);
+
+	// sign file - need strlen of file to be sent
+	//BOOLEAN flag = TRUE;
+	if ((evp_sign(ssl, rsa_pkey, filename)) != 0) {
+		fprintf(stderr, RED "Error: Failed to sign file%s\n", RESET);
+		free(cmd_and_file);
+		return EXIT_FAILURE;
+	}
 
 	// receive confirmation from server
 	expect_confirm(ssl);
 
-	free(cmd_and_args);
+	free(cmd_and_file);
 	return EXIT_SUCCESS;
 }
 
 int main(int argc, char * argv[]) {
-	int sockfd, opt = 0, circ;
+	int sockfd, opt = 0;
+	int count = 0, count2 = 0, count3 = 0;
 	char buf[BUFSIZE];
 	char filename[100], cert[100], host[255]; // or char *host = malloc(strlen(host)+1);
-	SSL_CTX *ctx;
-	SSL *ssl;
+	char command[MAXSTR][2];
+	char paramValue[MAXSTR][MAXLEN] = {{0}};
+	char circleNum[MAXSTR][MAXLEN] = {{0}};
+	char vouchName[MAXSTR][MAXLEN] = {{0}};
 	
 	// Initialise OpenSSL and cert
+	SSL_CTX *ctx;
+	SSL *ssl;
 	SSL_library_init(); // load SSL encrpytion & hash algorithms
 	ctx = init_cert();
 	load_cert(ctx, "clientcert.pem", "clientkey.pem");
 
-	while ((opt = getopt(argc, argv, "a:c:f:h:ln:u:v:")) != -1) {
+	while ((opt = getopt(argc, argv, "a:c:f:h:ln:s:u:v:")) != -1) {
 		switch(opt) {
 			case 'a': 
 				if ((add_or_replace(ssl, "-a ", "clientkey.pem", optarg)) != 0) {
 					fprintf(stderr, RED "-a command failed %s\n", RESET);
 					break;
 				}
-				printf(CYAN "-a worked woo%s\n", RESET);
+				printf(CYAN "-a successful%s\n", RESET);
 				break;
 			case 'c':
-				if ((req_circ(ssl, "-c ", optarg)) != 0) {
-					fprintf(stderr, RED "-c command failed %s\n", RESET);
-					break;
-				}
-				printf(CYAN "-c worked woo%s\n", RESET);
+				strcpy(circleNum[count], "0");
+				strcpy(circleNum[count], optarg);
 				break;
 			case 'f':
-				if ((fetch(ssl, "-f ", optarg)) != 0) {
-					fprintf(stderr, RED "-f command failed %s\n", RESET);
-					break;
-				}
-				printf(CYAN "-f worked woo%s\n", RESET);
+				count++;
+				command[count][0] = opt;
+				strcpy(paramValue[count], optarg);
 				break;
 			case 'h': // flaw because it needs to be first thing sent
 				strcpy(host, optarg);
@@ -569,21 +547,18 @@ int main(int argc, char * argv[]) {
 					fprintf(stderr, RED "-l command failed %s\n", RESET);
 					break;
 				}
-				printf(CYAN "-l worked woo%s\n", RESET);
+				printf(CYAN "-l successful%s\n", RESET);
 				break;
 			case 'n':
-				if ((req_name(ssl, "-n ", optarg)) != 0) {
-					fprintf(stderr, RED "-n command failed %s\n", RESET);
-					break;
-				}
-				printf(CYAN "-n worked woo%s\n", RESET);
+				strcpy(vouchName[count], "");
+				strcpy(vouchName[count], optarg);
 				break;
 			case 'u':
 				if ((upload_cert(ssl, "-u ", optarg)) != 0) {
 					fprintf(stderr, RED "-u command failed %s\n", RESET);
 					break;
 				}
-				printf(CYAN "-u worked woo%s\n", RESET);				
+				printf(CYAN "-u successful%s\n", RESET);				
 				break;
 			case 'v':
 				strcpy(filename, optarg);
@@ -596,17 +571,27 @@ int main(int argc, char * argv[]) {
 					fprintf(stderr, "-v command requires two arguments\n");
 					break;
 				}
-				if ((verify_file(ssl, "-v", filename, cert)) != 0) {
+				if ((vouch_file(ssl, "-v", filename, "clientkey.pem", cert)) != 0) {
 					fprintf(stderr, RED "-v command failed %s\n", RESET);
 					break;
 				}
-				printf(CYAN "-v worked woo%s\n", RESET);
+				printf(CYAN "-v successful%s\n", RESET);
 				break;
 			default:
 				printf(CYAN "Usage: %s\n", RESET);
-			}
 		}
-	// ShowCerts(ssl);
+	}
+	for (int i = 0; i <= count; i++) {
+		switch(command[i][0]) {
+			case 'f':
+			 	if ((fetch(ssl, "-f ", paramValue[i], circleNum[i], vouchName[i])) != 0) {
+					fprintf(stderr, RED "-f command failed %s\n", RESET);
+					break;
+				}
+				printf(CYAN "-f successful %s\n", RESET);
+				break;
+		}
+	}
 
 	// shut down socket
 	shutdown(sockfd, SHUT_RDWR);
