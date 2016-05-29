@@ -1,9 +1,29 @@
 # cits3002
 
 ## Participants:
-|Eleanor Leung   | 21149831 |
-|Aiden Ziegelaar | 21333223 |
-|Matthew Cooper  | 20933403 |
+<table>
+<tr>
+<td>
+Eleanor Leung
+</td><td>
+21149831
+</td>
+</tr>
+<tr>
+<td>
+Aiden Ziegelaar
+</td><td>
+21333223
+</td>
+</tr>
+<tr>
+<td>
+Matthew Cooper
+</td><td>
+20933403
+</td>
+</tr>
+</table>
 
 ## A Secure File Server
 
