@@ -4,39 +4,59 @@ import config
 import pickle
 import OpenSSL
 
+def verifyCertificate(cert, issuerCert):
+    tempTrustStore = OpenSSL.crypto.X509Store()
+    tempTrustStore.add_cert(issuerCert)
+    print(tempTrustStore)
+    context = OpenSSL.crypto.X509StoreContext(tempTrustStore, cert)
+    context.set_store(tempTrustStore)
+    if context.verify_certificate() == None:
+        return True
+    else:
+        return False
+
 def getIssuerName(cert):
-    for pair in cert.get_issuer().get_subject():
-            if pair[0] == "CN":
-                return pair[0]
+    for pair in cert.get_issuer().get_components():
+            if pair[0] == b"CN":
+                return pair[1].decode()
 
 def getNextCert(name):
-    with open(os.path.join(config.certs, name + ".cert"), "r") as certFile:
-        certObject = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, certFile)
-        with open(os.path.join(config.certs, getIssuerName() + ".crt"), "r") as nextCertFile:
-            nextCertObject = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, certFile)
-            #crypto.verify(nextCertObject,certObject.gety_si certObject.get_name_hash(),
-        return getIssuerName(nextCertObject)
+    with open(os.path.join(config.certs, name + ".crt"), "r") as certFile:
+        certObject = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, certFile.read())
+        with open(os.path.join(config.certs, getIssuerName(certObject) + ".crt"), "r") as nextCertFile:
+            nextCertObject = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, nextCertFile.read())
+            if verifyCertificate(certObject, nextCertObject):
+                return getIssuerName(nextCertObject)
+            else:
+                return None
 
 def makeCircle(name):
     circle = []
     currentCertObject = []
-    with open(os.path.join(config.certs, name + ".cert"), "r") as certFile:
-        firstCert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, certFile)
+    with open(os.path.join(config.certs, name + ".crt"), "r") as certFile:
+        firstCert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, certFile.read())
         issuer = getIssuerName(firstCert)
     i = 1
     circle.append(issuer)
     cert = getNextCert(issuer)
     while cert != firstCertName:
         cert = getNextCert(cert)
-        circle.append(cert)
+        if cert != None:
+            circle.append(cert)
+        else:
+            circle = None
+            break
+    print(circle)
     return circle
 
 def genCircles(filename, minCircleSize):
     vouches = checkVouches(filename)
     circles = []
-    return[[1,1,1,1,1,1]]
     for vouch in vouches:
-        circles.append(makeCircle(vouch[0]))
+        circle = makeCircle(vouch[0])
+        if circle != None:
+            circles.append(circle)
+    return circles
 
 def applySignature(filename, signature, cert):
     previousVouches = []
@@ -46,7 +66,6 @@ def applySignature(filename, signature, cert):
         for pair in cert.get_subject().get_components():
             if b'CN' == pair[0]:
                 previousVouches.append([pair[1].decode(), signature])
-            print(pair)
         with open(os.path.join(config.certs, filename + ".pickle"), "wb+") as vouchFile:
             pickle.dump(previousVouches, vouchFile)
     else:
@@ -62,7 +81,8 @@ def checkVouches(filename):
                     validity = verify.verify(filename, certObject, vouch[1])
                     if validity == False:
                         vouchList = vouchList.remove(vouch)
-            print(vouchList)
+            if vouchList == None:
+                vouchList = []
             return vouchList
     else:
             return []

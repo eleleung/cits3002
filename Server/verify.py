@@ -22,7 +22,6 @@ def verify(filename, cert, signature):
     except OpenSSL.crypto.Error:
         result = True
     dataFile.close()
-    print(result)
     if result == None:
         return True
     else:

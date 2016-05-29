@@ -11,7 +11,7 @@ def createSSL(ctx):
     # set up the sockets
     host = socket.gethostbyname(socket.gethostname())
     try:
-        socketSSL.bind(("192.168.43.70", config.port))
+        socketSSL.bind(("localhost", config.port))
     except socket.error as msg:
         print(config.pcolours.WARNING + 'Bind failed, socket error message: ' + str(msg))
         sys.exit()

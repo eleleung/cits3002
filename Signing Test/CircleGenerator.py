@@ -15,12 +15,13 @@ def create(numberOfCerts):
             takenNames = pickle.load(nameList)
     else:
         takenNames = []
+    print(takenNames)
     firstName = genName(firstNames, lastNames, takenNames)
     takenNames.append(firstName)
     firstKey = genKey(firstName)
     firstCert = genCert(firstName, firstKey, firstKey, "self", i)
     previous = {"Cert" : firstCert, "Key" : firstKey}
-    while i <= numberOfCerts:
+    while i < numberOfCerts:
         currentName = genName(firstNames, lastNames, takenNames)
         currentKey = genKey(currentName)
         currentCert = genCert(currentName, currentKey, previous["Key"], previous["Cert"].get_subject(), i)
@@ -76,7 +77,7 @@ def genCert(name, certKey, issuerKey, issuer, i):
     else:
         cert.set_issuer(issuer)
     cert.set_pubkey(certKey)
-    cert.sign(issuerKey, "sha256")
+    cert.sign(issuerKey, "sha1")
     with open(CERT_FILE, "wb+") as certFile:
         certFile.write(crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
     return cert
