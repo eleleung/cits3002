@@ -720,8 +720,6 @@ int main(int argc, char * argv[]) {
 			case 'h': // must be first flag to be executed
 				host = strtok(optarg, delim);
 				port = strtok(NULL, delim);
-				printf("%s\n", host);
-				printf("%s\n", port);
 
 				// call to create and connect socket
 				if ((sockfd = connect_socket(host, port)) < 0) {
