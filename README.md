@@ -2,9 +2,7 @@
 
 ## A Secure File Server
 
-This project needs to create a file server/client pair that uses openSSL for encryption.
-
-The following commands need to be implemented:
+The following commands are valid inputs:
 * -a filename 		: add or replace a file on the oldtrusty server
 * -c number 		: provide the required circumference (length) of a circle of trust
 * -f filename 		: fetch an existing file from the oldtrusty server (simply sent to stdout)
@@ -14,14 +12,13 @@ The following commands need to be implemented:
 * -u certificate 	: upload a certificate to the oldtrusty server
 * -v filename certificate: vouch for the authenticity of an existing file in the oldtrusty server using the indicated certificate
 
-## The Circle Of Trust Model
+## The Python Server
 
-A circle of certificates are generated much the same as a chain of certificates. The main difference is instead of forming a hierarchy the initial certificate that was self signed is replaced by a certificate signed by the last member of the chain hence forming a circle.
+For the python server some dependencies have to be met:
+* Python 3.x.x must be installed
+* pip3 must be installed (most pkg-managers refer to this as python3-pip)
+* OpenSSL must be installed with the header packages
 
-Files are verified by a member of a circle of trust vouching for that file. If one member vouches for it then, given that everyone in the circle trusts everyone else, the file is considered verified by a circle with a circumference equal to the number of members in the circle.
+Before the first run of the server run setup.py in the /Server/ subdirectory, this will install pyOpenSSL in an external_modules folder for those without root access.
 
-This provides us with two metrics; one is the total number of people who have vouched for the file, and the second is the circumference of the circle of people who indirectly trust that file.
-
-Considerations for trust:
-* How to associate a given client with an already uploaded certificate?
-* Should only members of the circle be allowed to download files?
+The server is started by running server.py from the /Server/ subdirectory
