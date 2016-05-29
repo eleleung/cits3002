@@ -1,3 +1,11 @@
+////////////////////////////////////////
+//   CITS3002 PROJECT PARTICIPANTS:   //
+//------------------------------------//
+// Eleanor Leung   |	 21149831     //
+// Aiden Ziegelaar |     21333223     //
+// Matthew Cooper  |     20933403     //
+////////////////////////////////////////
+
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -552,7 +560,7 @@ int fetch(SSL *ssl, char *command, char *filename, char *circleNum, char *vouchN
 
 	// now read the file from server
 	if ((read_file_from_server(ssl, filename)) != 0) {
-		fprintf(stderr, RED "Server Response: %s\n", sign);		
+		fprintf(stderr, RED "Server Response: %s\n", sign);
 		return EXIT_FAILURE;
 	}
 

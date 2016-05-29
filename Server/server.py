@@ -1,3 +1,11 @@
+######################################
+#   CITS3002 PROJECT PARTICIPANTS:   #
+#------------------------------------#
+# Eleanor Leung   |	    21149831     #
+# Aiden Ziegelaar |     21333223     #
+# Matthew Cooper  |     20933403     #
+######################################
+
 import os
 import sys
 sys.path.append(os.path.join(os.getcwd(), "external_modules"))
