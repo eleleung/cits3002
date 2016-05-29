@@ -26,12 +26,16 @@ def acceptIncoming(conn):
     # connect to client
     client, addr = conn.accept()
     print(config.pcolours.OKGREEN +"Accepting connection")
+    # receive the first frame as a command string
     try:
         command = client.recv(config.payload_size).decode()
     except SSL.SysCallError as msg:
         print("No command received, ssl error:" + str(msg))
         return(-1)
+    # Split the command string into a list.
     command = shlex.split(command)
+    #print(command)
+    # Parse the command string
     control.parse(command, client)
 
 runserver()

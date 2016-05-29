@@ -8,7 +8,6 @@ def verifyCertificate(cert, issuerCert):
     issuerCert.set_issuer(issuerCert.get_subject())
     tempTrustStore = OpenSSL.crypto.X509Store()
     tempTrustStore.add_cert(issuerCert)
-    print(tempTrustStore)
     context = OpenSSL.crypto.X509StoreContext(tempTrustStore, cert)
     context.set_store(tempTrustStore)
     if context.verify_certificate() == None:
@@ -57,7 +56,9 @@ def genCircles(filename, minCircleSize):
     for vouch in vouches:
         circle = makeCircle(vouch[0])
         if circle != None:
-            circles.append(circle)
+            if len(circle) >= int(minCircleSize):
+                circles.append(circle)
+    print(circles)
     return circles
 
 def applySignature(filename, signature, cert):
@@ -65,6 +66,7 @@ def applySignature(filename, signature, cert):
     result = verify.verify(filename, cert, signature)
     if result:
         previousVouches = checkVouches(filename)
+        previousVouches = list(set(previousVouches))
         for pair in cert.get_subject().get_components():
             if b'CN' == pair[0]:
                 previousVouches.append([pair[1].decode(), signature])
