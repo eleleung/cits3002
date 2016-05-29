@@ -1,8 +1,8 @@
-/* client.c -- stream socket 
-** Ele Leung (21149831) 2/05/16 
+/* client.c -- stream socket
+** Ele Leung (21149831) 2/05/16
 */
 
-#include <stdio.h> 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
@@ -26,12 +26,12 @@
 #define SERVERPORT 	"3434" // the port client will be connecting to
 
 #define BUFSIZE 	1024 // max no. of bytes we can get at once
-#define MAXSTR 		20 
+#define MAXSTR 		20
 #define MAXLEN 		1024
 
-#define RED 		"\033[31m" 
+#define RED 		"\033[31m"
 #define RESET 		"\033[0m"
-#define GREEN 		"\033[32m" 
+#define GREEN 		"\033[32m"
 #define MAGENTA 	"\x1b[35m"
 #define CYAN    	"\x1b[36m"
 #define BLUE 		"\x1b[34m"
@@ -52,7 +52,7 @@ void *get_in_addr(struct sockaddr *sa) {
 int connect_socket(const char *host, const char *port) {
 	int x, sockfd;
 	struct addrinfo hints, *addr, *p;
-	char s[INET6_ADDRSTRLEN]; 
+	char s[INET6_ADDRSTRLEN];
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
@@ -65,13 +65,13 @@ int connect_socket(const char *host, const char *port) {
 
 	// Step through linked list of results and connect to first possible
 	for (p = addr; p != NULL; p = p->ai_next) {
-		
-		if ((sockfd = socket(p->ai_family, p->ai_socktype, 
+
+		if ((sockfd = socket(p->ai_family, p->ai_socktype,
 			p->ai_protocol)) == -1) {
 			perror(RED "Error: Opening socket\n" RESET);
 			continue;
 		}
-		
+
 		if (connect(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
 			shutdown(sockfd, SHUT_RDWR);
 			close(sockfd);
@@ -79,7 +79,7 @@ int connect_socket(const char *host, const char *port) {
 			//perror(RED "Error" RESET);
 			continue;
 		}
-		
+
 		break;
 	}
 
@@ -134,7 +134,7 @@ int read_file_from_server(SSL *ssl, const char filenm[]) {
 	printf(BLUE "Client receiving %s from the Server...%s\n", filenm, RESET);
 	//SSL_write(ssl, filenm, strlen(filenm));
 
-	FILE *fp = fopen(filenm, "w"); // a or w?
+	FILE *fp = fopen(filenm, "wb"); // a or w?
 	if (fp == NULL) {
 		fprintf(stderr, RED "File %s can't be opened\n" RESET, filenm);
 		free(buffer);
@@ -145,23 +145,27 @@ int read_file_from_server(SSL *ssl, const char filenm[]) {
 	// read file from server and write to file
 	while ((nbytes = SSL_read(ssl, buffer, BUFSIZE)) > 0) {
 		// fetch to stdout
-		fprintf(stdout, BLUE "%s%s", buffer, RESET);
+		//fprintf(stdout, BLUE "%s%s", buffer, RESET);
 		int writebytes = fwrite(buffer, sizeof(char), nbytes, fp);
 		if (writebytes < nbytes) {
 			fprintf(stderr, RED "File write failed\n" RESET);
 		}
-		if (nbytes == 0) {
-			fprintf(stderr, RED "No file found\n" RESET);
-			break;
 		}
+
+		if (sizeof(buffer) == 0) {
+			fprintf(stderr, RED "No file found\n" RESET);
+			return EXIT_FAILURE;
+		}
+
 		bzero(buffer, BUFSIZE);
-	}
+
 	if (nbytes < 0) {
 		fprintf(stderr, RED "Can't read from socket\n" RESET);
 		free(buffer);
 		fclose(fp);
 		return EXIT_FAILURE;
 	}
+
 	printf(GREEN "File successfully received %s\n", RESET);
 	free(buffer);
 	fclose(fp);
@@ -176,7 +180,7 @@ SSL_CTX * init_cert(void) {
 	SSL_load_error_strings(); // load the error strings for good error reporting
     ERR_load_BIO_strings();
     OpenSSL_add_all_algorithms();
-    
+
     // initilise SSL context and load keys
     ctx = SSL_CTX_new(SSLv3_method());
     if (ctx == NULL) {
@@ -187,7 +191,7 @@ SSL_CTX * init_cert(void) {
 
 // load certificate and keys
 void load_cert(SSL_CTX *ctx, char *cert, char *key) {
-	// load local cert 
+	// load local cert
 	if (SSL_CTX_use_certificate_file(ctx, cert, SSL_FILETYPE_PEM) != 1) {
 		ERR_print_errors_fp(stderr);
 	}
@@ -256,7 +260,7 @@ int evp_sign(SSL *ssl, char *rsa_pkey, char *filename) {
 		return EXIT_FAILURE;
 	}
 	print_bytes(pkey, sizeof(pkey));
-	
+
 	unsigned char *sign = malloc(EVP_PKEY_size(pkey));
 	unsigned int sign_len = EVP_PKEY_size(pkey);
 	if (!sign) {
@@ -279,9 +283,9 @@ int evp_sign(SSL *ssl, char *rsa_pkey, char *filename) {
 		fprintf(stderr, RED "Error: Couldn't malloc memory%s\n", RESET);
 		EVP_PKEY_free(pkey);
 		return EXIT_FAILURE;
-	}	
+	}
 
-	// update signature 
+	// update signature
 	while (data_len > 0) {
 		if (!EVP_SignUpdate(md_ctx, data, data_len)) {
 			fprintf(stderr, "Error: EVP_SignUpdate failed%s\n", RESET);
@@ -297,7 +301,7 @@ int evp_sign(SSL *ssl, char *rsa_pkey, char *filename) {
 		EVP_PKEY_free(pkey);
 		return EXIT_FAILURE;
 	}
-	
+
 	// to print out signature
 	//print_bytes(sign, sizeof(sign));
 
@@ -348,9 +352,9 @@ int vouch_sign(SSL *ssl, char *rsa_pkey, char *filename) {
 		fprintf(stderr, RED "Error: Couldn't malloc memory%s\n", RESET);
 		EVP_PKEY_free(pkey);
 		return EXIT_FAILURE;
-	}	
+	}
 
-	// update signature 
+	// update signature
 	while (data_len > 0) {
 		if (!EVP_SignUpdate(md_ctx, data, data_len)) {
 			fprintf(stderr, "Error: EVP_SignUpdate failed%s\n", RESET);
@@ -366,7 +370,7 @@ int vouch_sign(SSL *ssl, char *rsa_pkey, char *filename) {
 		EVP_PKEY_free(pkey);
 		return EXIT_FAILURE;
 	}
-	
+
 	// to print out signature
 	//print_bytes(sign, sizeof(sign));
 	char *string1 = concat(filename, " -s ");
@@ -448,30 +452,32 @@ int evp_verify(X509 *cert, char *datafile, FILE *sigFileFP) {
     	printf("Error creating message digest\n");
     	return EXIT_FAILURE;
     }
-    
+
     /*if ((EVP_VerifyInit_ex(md_ctx, md, NULL)) != 1) {
     	printf("Error initialising verify\n");
     }*/
 
     EVP_MD_CTX *md_ctx = EVP_MD_CTX_create();
-
+/*
     if (!EVP_VerifyInit(md_ctx, EVP_sha256())) {
 		fprintf(stderr, "Error: EVP_VerifyInit failed%s\n", RESET);
 		EVP_PKEY_free(pubKey);
 		return EXIT_FAILURE;
 	}
-
+*/
+	if ((EVP_VerifyInit_ex(md_ctx, md, NULL)) != 1) {
+		printf("Verify init failed\n");
+	}
 	// read in data in sizes of BUFSIZE to generate signature
 	unsigned char *data = malloc(BUFSIZE);
-	int data_len = fread(data, 1, BUFSIZE, data_file);
-	fprintf(stdout, "%s", data);
+	unsigned int data_len = fread(data, 1, BUFSIZE, data_file);
+	//fprintf(stdout, "%s", data);
 	printf("check that fread on data works: size of data_len is %d\n", data_len);
 	if (!data) {
 		fprintf(stderr, RED "Error: Couldn't malloc memory%s\n", RESET);
 		EVP_PKEY_free(pubKey);
 		return EXIT_FAILURE;
-	}	
-
+	}
 	while (data_len > 0) {
 		if (!EVP_VerifyUpdate(md_ctx, data, data_len)) {
 			fprintf(stderr, "Error: EVP_VerifyUpdate failed%s\n", RESET);
@@ -479,21 +485,23 @@ int evp_verify(X509 *cert, char *datafile, FILE *sigFileFP) {
 			return EXIT_FAILURE;
 		}
 		data_len = fread(data, sizeof(char), BUFSIZE, data_file);
-		fprintf(stdout, "%s", data);
+		//fprintf(stdout, "%s", data);
 	}
-	//printf("data fed in to EVP_VerifyUpdate to gen sig: "); 
+	//printf("data fed in to EVP_VerifyUpdate to gen sig: ");
 	//print_bytes(data, sizeof(data));
 
-
     unsigned char *sig = malloc(BUFSIZE);
-    int sig_len = fread(sig, 1, BUFSIZE, sigFileFP);
+    fread(sig, 1, BUFSIZE, sigFileFP);
+		unsigned int sig_len = 1024;
+		fprintf(stdout, "%lu \n",sizeof(*sig));
     print_bytes(sig, BUFSIZE);
     //print_bytes(pubKey, sizeof(pubKey));
 
     int result;
-    if ((result = EVP_VerifyFinal(md_ctx, sig, sig_len, pubKey)) < 1) {
+    if ((result = EVP_VerifyFinal(md_ctx, sig, BUFSIZE, pubKey)) < 1) {
     	printf("result: %d\n", result);
-        fprintf(stderr, "EVP_VerifyFinal: failed.\n");
+        fprintf(stderr, "EVP_VerifyFinal: Bad signature.\n");
+				ERR_print_errors_fp(stderr);
         free(sig);
         free(data);
         EVP_PKEY_free(pubKey);
@@ -518,7 +526,7 @@ int fetch(SSL *ssl, char *command, char *filename, char *circleNum, char *vouchN
 	char *cmd_and_file = concat(string4, vouchName);
 
 	printf("%s\n",cmd_and_file);
-	
+
 	int length = strlen(cmd_and_file)+1;
 
 	// send command+filename to server
@@ -540,9 +548,9 @@ int fetch(SSL *ssl, char *command, char *filename, char *circleNum, char *vouchN
 	// read signature
 	int sze = SSL_read(ssl, sign, sizeof(sign));
 	printf("size of sig = %d\n", sze);
-	//printf("sig read from server "); 
+	//printf("sig read from server ");
 	print_bytes(sign, sizeof(sign));
-	
+
 	// add to file
 	FILE *sigFileFP = fopen("sign.txt", "w+");
 	fwrite(sign, 1, BUFSIZE, sigFileFP);
@@ -590,7 +598,7 @@ int list(SSL *ssl, char *command) {
 		return EXIT_FAILURE;
 	}
 	printf("%s\n", cmd);
-	
+
 	while ((SSL_read(ssl, buffer, BUFSIZE)) > 0) {
 		printf("%s\n", buffer);
 	}
@@ -686,7 +694,7 @@ int main(int argc, char * argv[]) {
 	char paramValue[MAXSTR][MAXLEN] = {{0}};
 	char circleNum[MAXSTR][MAXLEN] = {{0}};
 	char vouchName[MAXSTR][MAXLEN] = {{0}};
-	
+
 	// Initialise OpenSSL and cert
 	SSL_CTX *ctx;
 	SSL *ssl;
@@ -696,7 +704,7 @@ int main(int argc, char * argv[]) {
 
 	while ((opt = getopt(argc, argv, "a:c:f:h:ln:s:u:v:")) != -1) {
 		switch(opt) {
-			case 'a': 
+			case 'a':
 				if ((add_or_replace(ssl, "-a ", "clientkey.pem", optarg)) != 0) {
 					fprintf(stderr, RED "-a command failed %s\n", RESET);
 					break;
@@ -704,7 +712,6 @@ int main(int argc, char * argv[]) {
 				printf(CYAN "-a successful%s\n", RESET);
 				break;
 			case 'c':
-				strcpy(circleNum[count], "0"); // default to 0 if not set and add to array
 				strcpy(circleNum[count], optarg);
 				break;
 			case 'f':
@@ -715,16 +722,16 @@ int main(int argc, char * argv[]) {
 			case 'h': // must be first flag to be executed
 				strcpy(host, optarg);
 				printf(CYAN "%s %s\n", host, RESET);
-				
+
 				// call to create and connect socket
 				if ((sockfd = connect_socket(host, SERVERPORT)) < 0) {
 					return EXIT_FAILURE;
 				}
-				
+
 				// create new SSL connection state
 				ssl = SSL_new(ctx);
 				SSL_set_fd(ssl, sockfd);
-				if (SSL_connect(ssl) == -1) { 	
+				if (SSL_connect(ssl) == -1) {
 					ERR_print_errors_fp(stderr);
 					return EXIT_FAILURE;
 				}
@@ -738,15 +745,13 @@ int main(int argc, char * argv[]) {
 				printf(CYAN "-l successful%s\n", RESET);
 				break;
 			case 'n':
-				strcpy(vouchName[count], ""); // default to "" if not set and add to array
-				strcpy(vouchName[count], optarg);
 				break;
 			case 'u':
 				if ((upload_cert(ssl, "-u ", optarg)) != 0) {
 					fprintf(stderr, RED "-u command failed %s\n", RESET);
 					break;
 				}
-				printf(CYAN "-u successful%s\n", RESET);				
+				printf(CYAN "-u successful%s\n", RESET);
 				break;
 			case 'v':
 				strcpy(filename, optarg);
@@ -788,7 +793,7 @@ int main(int argc, char * argv[]) {
 	// close connection
 	close(sockfd);
 	SSL_CTX_free(ctx);
-	SSL_free(ssl); 
+	SSL_free(ssl);
 
 	return EXIT_SUCCESS;
 }
