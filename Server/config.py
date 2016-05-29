@@ -19,7 +19,7 @@ def init():
     global defaultCircumference
     defaultCircumference = 0
     global port
-    port = 1234
+    port = 3434
 
 
 class pcolours:

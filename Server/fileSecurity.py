@@ -14,7 +14,7 @@ def getNextCert(name):
         certObject = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, certFile)
         with open(os.path.join(config.certs, getIssuerName() + ".crt"), "r") as nextCertFile:
             nextCertObject = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, certFile)
-
+            #crypto.verify(nextCertObject,certObject.gety_si certObject.get_name_hash(),
         return getIssuerName(nextCertObject)
 
 def makeCircle(name):
@@ -44,23 +44,25 @@ def applySignature(filename, signature, cert):
     if result:
         previousVouches = checkVouches(filename)
         for pair in cert.get_subject().get_components():
-            if pair[0] == "CN":
-                previousVouches.append([pair[0], signature])
-        with open(filename + ".pickle", "wb+") as vouchFile:
-            pickle.dump(previousVouches)
+            if b'CN' == pair[0]:
+                previousVouches.append([pair[1].decode(), signature])
+            print(pair)
+        with open(os.path.join(config.certs, filename + ".pickle"), "wb+") as vouchFile:
+            pickle.dump(previousVouches, vouchFile)
     else:
         print(config.pcolours.FAIL + "File has changed since signing")
 
 def checkVouches(filename):
     if os.path.exists(os.path.join(config.certs, filename + ".pickle")):
-        with open(filename + ".pickle", "rb") as vouchFile:
-            vouchList = pickle.load(nameList)
+        with open(os.path.join(config.certs, filename + ".pickle"), "rb") as vouchFile:
+            vouchList = pickle.load(vouchFile)
             for vouch in vouchList:
                 with open(os.path.join(config.certs, vouch[0] + ".crt"), "r") as certFile:
-                    certObject = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, certFile)
-                    vailidity = verify.verify(filename, certObject, vouch[1])
+                    certObject = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, certFile.read())
+                    validity = verify.verify(filename, certObject, vouch[1])
                     if validity == False:
                         vouchList = vouchList.remove(vouch)
+            print(vouchList)
             return vouchList
     else:
             return []

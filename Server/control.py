@@ -8,7 +8,7 @@ import fileSecurity
 def parse(command, client):
     if "-a" in command:
         client.send(config.pcolours.OKBLUE + "Confirm")
-        fileOperations.receive_file(client, command[(command.index("-a") + 1)], config.storage)
+        fileOperations.receive_file(client, command[(command.index("-a") + 1)], config.storage, command[len(command) - 1])
     if "-f" in command:
         if not os.path.exists(os.path.join(os.getcwd(), config.storage, command[(command.index("-f") + 1)])):
             client.send(config.pcolours.FAIL + "ERROR: File not found")
@@ -31,12 +31,12 @@ def parse(command, client):
                 for circle in circles:
                     if len(circle) > largestCircle:
                         largestCircle = len(circle)
-                fileOperations.send_file(client, command[(command.index("-f") + 1)], largestCircle, command[len(command) - 1])
+                fileOperations.send_file(client, command[(command.index("-f") + 1)], largestCircle)
             else:
                 client.send(config.pcolours.FAIL + "ERROR: Circle of insufficient size")
                 client.close()
-    if "-l" in command:
-        fileOperations.listFiles(command[(command.index("-l") + 1)])
+    if "-l\x00" in command:
+        fileOperations.listFiles(client)
     if "-u" in command:
         fileOperations.receive_file(client, command[(command.index("-u") + 1)], config.certs)
     if "-v" in command:

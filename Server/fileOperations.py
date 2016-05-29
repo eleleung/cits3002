@@ -3,14 +3,9 @@ import socket
 import config
 from OpenSSL import SSL, crypto
 import verify
+import fileSecurity
 
-def ByteToHex( byteStr ):
-    hex = []
-    for aChar in byteStr:
-        hex.append( "%02X " % ord( aChar ) )
-    return ''.join( hex ).strip()
-
-def send_file(client, filename, largestCircle, size):
+def send_file(client, filename, largestCircle):
     filePath = os.path.join(config.storage, filename)
     print(config.pcolours.OKBLUE + "filename is :" + filePath)
     sent_file = open(filePath.strip("\x00"), "rb")
@@ -31,29 +26,32 @@ def receive_file(client, filename, root, size):
     # write data to file
     try:
         signature = client.recv(config.payload_size)
-        print(ByteToHex(signature))
     except SSL.SysCallError as msg:
         print(config.pcolours.WARNING +"First frame is end of file ssl error:" + str(msg))
         return(-1)
     clientCertObject = client.get_peer_certificate()
-    readData = 0
-    while readData < size:
-        readData = readData + len(data)
+    try:
+        data = client.recv(config.payload_size)
+    except SSL.SysCallError:
+        data = ""
+    while data != "":
+        recv_file.write(data)
         try:
             data = client.recv(config.payload_size)
-        except SSL.SysCallError as msg:
+        except SSL.SysCallError:
             data = ""
-        recv_file.write(data)
     recv_file.close()
     if verify.verify(filename, clientCertObject, signature) == True:
         print(config.pcolours.OKGREEN + "File is verified")
     else:
         print(config.pcolours.WARNING + "File could not be verified")
+    fileSecurity.applySignature(filename, signature, clientCertObject)
     print(config.pcolours.OKGREEN +"File received")
 
 def listFiles(client):
-    rootDir = "./root"
+    rootDir = config.storage
+    string = ""
     for dirName, subdirList, fileList in os.walk(rootDir):
-        print(dirName)
         for fname in fileList:
-            client.send('    ++    %s' % fname + "\t\t\t++    Circumference:" + "\n")
+            string = string + '    ++    %s' % fname + "\t\t\t++    Circumference:" + "\n"
+    client.send(string)

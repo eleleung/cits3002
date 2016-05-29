@@ -1,6 +1,7 @@
 import os
 import socket
 import config
+import OpenSSL
 from OpenSSL import crypto
 import os
 import fileOperations

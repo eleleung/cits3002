@@ -26,7 +26,6 @@ def acceptIncoming(conn):
     # connect to client
     client, addr = conn.accept()
     print(config.pcolours.OKGREEN +"Accepting connection")
-    client.do_handshake()
     try:
         command = client.recv(config.payload_size).decode()
     except SSL.SysCallError as msg:
