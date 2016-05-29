@@ -1,6 +1,10 @@
-/* client.c -- stream socket
-** Ele Leung (21149831) 2/05/16
-*/
+////////////////////////////////////////
+//   CITS3002 PROJECT PARTICIPANTS:   //
+//------------------------------------//
+// Eleanor Leung   |	   21149831     //
+// Aiden Ziegelaar |     21333223     //
+// Matthew Cooper  |     20933403     //
+////////////////////////////////////////
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -150,7 +154,7 @@ int read_file_from_server(SSL *ssl, const char filenm[]) {
 			fprintf(stderr, RED "File write failed\n" RESET);
 		}
 	}
-	
+
 	if (nbytes == 0) {
 		fprintf(stderr, RED "No file found\n" RESET);
 		return EXIT_FAILURE;
@@ -562,7 +566,7 @@ int fetch(SSL *ssl, char *command, char *filename, char *circleNum, char *vouchN
 
 	// now read the data
 	if ((read_file_from_server(ssl, filename)) != 0) {
-		fprintf(stderr, RED "Server Response: %s\n", sign);		
+		fprintf(stderr, RED "Server Response: %s\n", sign);
 		return EXIT_FAILURE;
 	}
 
