@@ -1,5 +1,10 @@
 # cits3002
 
+## Participants:
+|Eleanor Leung   | 21149831 |
+|Aiden Ziegelaar | 21333223 |
+|Matthew Cooper  | 20933403 |
+
 ## A Secure File Server
 
 The following commands are valid inputs:
