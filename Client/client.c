@@ -126,40 +126,44 @@ int write_file_to_server(SSL *ssl, const char filenm[]) {
 
 // Read file from server
 int read_file_from_server(SSL *ssl, const char filenm[]) {
-	char buffer[BUFSIZE];
+	//char buffer[BUFSIZE];
+	unsigned char *buffer = malloc(BUFSIZE);
 	int nbytes;
 
 	// receiving file name
 	printf(BLUE "Client receiving %s from the Server...%s\n", filenm, RESET);
-	SSL_write(ssl, filenm, strlen(filenm));
+	//SSL_write(ssl, filenm, strlen(filenm));
 
 	FILE *fp = fopen(filenm, "w"); // a or w?
 	if (fp == NULL) {
 		fprintf(stderr, RED "File %s can't be opened\n" RESET, filenm);
-		return EXIT_SUCCESS;
+		free(buffer);
+		return EXIT_FAILURE;
 	}
 
 	bzero(buffer, BUFSIZE);
 	// read file from server and write to file
 	while ((nbytes = SSL_read(ssl, buffer, BUFSIZE)) > 0) {
 		// fetch to stdout
-		//fprintf(stdout, BLUE "%s%s", buffer, RESET);
+		fprintf(stdout, BLUE "%s%s", buffer, RESET);
 		int writebytes = fwrite(buffer, sizeof(char), nbytes, fp);
 		if (writebytes < nbytes) {
 			fprintf(stderr, RED "File write failed\n" RESET);
 		}
-		bzero(buffer, BUFSIZE);
 		if (nbytes == 0) {
 			fprintf(stderr, RED "No file found\n" RESET);
 			break;
 		}
+		bzero(buffer, BUFSIZE);
 	}
 	if (nbytes < 0) {
 		fprintf(stderr, RED "Can't read from socket\n" RESET);
+		free(buffer);
 		fclose(fp);
 		return EXIT_FAILURE;
 	}
 	printf(GREEN "File successfully received %s\n", RESET);
+	free(buffer);
 	fclose(fp);
 
 	return EXIT_SUCCESS;
@@ -251,6 +255,7 @@ int evp_sign(SSL *ssl, char *rsa_pkey, char *filename) {
 		ERR_print_errors_fp(stderr);
 		return EXIT_FAILURE;
 	}
+	print_bytes(pkey, sizeof(pkey));
 	
 	unsigned char *sign = malloc(EVP_PKEY_size(pkey));
 	unsigned int sign_len = EVP_PKEY_size(pkey);
@@ -320,7 +325,7 @@ int vouch_sign(SSL *ssl, char *rsa_pkey, char *filename) {
 		ERR_print_errors_fp(stderr);
 		return EXIT_FAILURE;
 	}
-	
+
 	unsigned char *sign = malloc(EVP_PKEY_size(pkey));
 	unsigned int sign_len = EVP_PKEY_size(pkey);
 	if (!sign) {
@@ -427,50 +432,77 @@ int add_or_replace(SSL *ssl, char *command, char *rsa_pkey, char *filename) {
 	return EXIT_SUCCESS;
 }
 
+// function to verify signatures when client fetches file from server
 int evp_verify(X509 *cert, char *datafile, FILE *sigFileFP) {
-    unsigned char *data;
-    int data_len;
-
-    unsigned char *sig;
-
-    FILE *data_file = fopen(datafile, "r");
-
-    EVP_MD_CTX *ctx = EVP_MD_CTX_create();
+    FILE *data_file = fopen(datafile, "rb");
 
     const EVP_MD *md = EVP_get_digestbyname("SHA256");
 
-    EVP_PKEY *pkey = X509_get_pubkey(cert); //public key
+    EVP_PKEY *pubKey = X509_get_pubkey(cert); //public key
+    //EVP_PKEY_missing_parameters(pubKey);
+    if ((X509_verify(cert, pubKey)) != 1) {
+    	printf("sig check failed\n");
+    }
 
     if (!md) {
     	printf("Error creating message digest\n");
     	return EXIT_FAILURE;
     }
-
-    if ((EVP_VerifyInit_ex(ctx, md, NULL)) != 1) {
+    
+    /*if ((EVP_VerifyInit_ex(md_ctx, md, NULL)) != 1) {
     	printf("Error initialising verify\n");
-    }
+    }*/
 
-    data = malloc(BUFSIZE);
-    data_len = fread(data, 1, BUFSIZE, data_file);
-    while (data_len > 0) {
-    	EVP_VerifyUpdate(ctx, data, data_len);
-    	data_len = fread(data, 1, BUFSIZE, data_file);
-    }
+    EVP_MD_CTX *md_ctx = EVP_MD_CTX_create();
 
-    sig = malloc(BUFSIZE);
-    fread(sig, 1, BUFSIZE, sigFileFP);
+    if (!EVP_VerifyInit(md_ctx, EVP_sha256())) {
+		fprintf(stderr, "Error: EVP_VerifyInit failed%s\n", RESET);
+		EVP_PKEY_free(pubKey);
+		return EXIT_FAILURE;
+	}
+
+	// read in data in sizes of BUFSIZE to generate signature
+	unsigned char *data = malloc(BUFSIZE);
+	int data_len = fread(data, 1, BUFSIZE, data_file);
+	fprintf(stdout, "%s", data);
+	printf("check that fread on data works: size of data_len is %d\n", data_len);
+	if (!data) {
+		fprintf(stderr, RED "Error: Couldn't malloc memory%s\n", RESET);
+		EVP_PKEY_free(pubKey);
+		return EXIT_FAILURE;
+	}	
+
+	while (data_len > 0) {
+		if (!EVP_VerifyUpdate(md_ctx, data, data_len)) {
+			fprintf(stderr, "Error: EVP_VerifyUpdate failed%s\n", RESET);
+			EVP_PKEY_free(pubKey);
+			return EXIT_FAILURE;
+		}
+		data_len = fread(data, sizeof(char), BUFSIZE, data_file);
+		fprintf(stdout, "%s", data);
+	}
+	//printf("data fed in to EVP_VerifyUpdate to gen sig: "); 
+	//print_bytes(data, sizeof(data));
+
+
+    unsigned char *sig = malloc(BUFSIZE);
+    int sig_len = fread(sig, 1, BUFSIZE, sigFileFP);
     print_bytes(sig, BUFSIZE);
+    //print_bytes(pubKey, sizeof(pubKey));
 
-    if (!EVP_VerifyFinal(ctx, sig, BUFSIZE, pkey)) {
+    int result;
+    if ((result = EVP_VerifyFinal(md_ctx, sig, sig_len, pubKey)) < 1) {
+    	printf("result: %d\n", result);
         fprintf(stderr, "EVP_VerifyFinal: failed.\n");
         free(sig);
         free(data);
-        EVP_PKEY_free(pkey);
+        EVP_PKEY_free(pubKey);
         return EXIT_FAILURE;
     }
 
     free(data);
     free(sig);
+    EVP_PKEY_free(pubKey);
     return EXIT_SUCCESS;
 }
 
@@ -508,21 +540,26 @@ int fetch(SSL *ssl, char *command, char *filename, char *circleNum, char *vouchN
 	// read signature
 	int sze = SSL_read(ssl, sign, sizeof(sign));
 	printf("size of sig = %d\n", sze);
+	//printf("sig read from server "); 
 	print_bytes(sign, sizeof(sign));
+	
+	// add to file
 	FILE *sigFileFP = fopen("sign.txt", "w+");
 	fwrite(sign, 1, BUFSIZE, sigFileFP);
 	fseek(sigFileFP, 0, SEEK_SET);
 
-	// read data
+	// now read the data
 	if ((read_file_from_server(ssl, filename)) != 0) {
 		return EXIT_FAILURE;
 	}
 
-	// check signature
+	// get cert from server to extract pubKey later on
 	X509 *cert = SSL_get_peer_certificate(ssl);
 	if (cert == NULL) {
     	printf("No certificates.\n");
     }
+    //print_bytes(cert, sizeof(cert));
+
 
     // verify signature
 	if ((evp_verify(cert, filename, sigFileFP)) != 0) {
@@ -632,6 +669,9 @@ int vouch_file(SSL *ssl, char *command, char *filename, char *rsa_pkey, char *ce
 		return EXIT_FAILURE;
 	}
 
+	// send the cert
+	//SSL_write("")
+
 	// receive confirmation from server
 	expect_confirm(ssl);
 
@@ -664,15 +704,15 @@ int main(int argc, char * argv[]) {
 				printf(CYAN "-a successful%s\n", RESET);
 				break;
 			case 'c':
-				strcpy(circleNum[count], "0");
+				strcpy(circleNum[count], "0"); // default to 0 if not set and add to array
 				strcpy(circleNum[count], optarg);
 				break;
 			case 'f':
 				count++;
-				command[count][0] = opt;
+				command[count][0] = opt; // add to array
 				strcpy(paramValue[count], optarg);
 				break;
-			case 'h': // flaw because it needs to be first thing sent
+			case 'h': // must be first flag to be executed
 				strcpy(host, optarg);
 				printf(CYAN "%s %s\n", host, RESET);
 				
@@ -698,7 +738,7 @@ int main(int argc, char * argv[]) {
 				printf(CYAN "-l successful%s\n", RESET);
 				break;
 			case 'n':
-				strcpy(vouchName[count], "");
+				strcpy(vouchName[count], ""); // default to "" if not set and add to array
 				strcpy(vouchName[count], optarg);
 				break;
 			case 'u':
@@ -729,6 +769,7 @@ int main(int argc, char * argv[]) {
 				printf(CYAN "Usage: -h [HOST] -flag [ARGUMENT]%s\n", RESET);
 		}
 	}
+	// go through -f commands from array and execute with appropriate arguments
 	for (int i = 0; i <= count; i++) {
 		switch(command[i][0]) {
 			case 'f':
