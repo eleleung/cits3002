@@ -5,6 +5,7 @@ import pickle
 import OpenSSL
 
 def verifyCertificate(cert, issuerCert):
+    issuerCert.set_issuer(issuerCert.get_subject())
     tempTrustStore = OpenSSL.crypto.X509Store()
     tempTrustStore.add_cert(issuerCert)
     print(tempTrustStore)
@@ -35,17 +36,18 @@ def makeCircle(name):
     currentCertObject = []
     with open(os.path.join(config.certs, name + ".crt"), "r") as certFile:
         firstCert = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, certFile.read())
-        issuer = getIssuerName(firstCert)
+        firstIssuer = getIssuerName(firstCert)
     i = 1
-    circle.append(issuer)
-    cert = getNextCert(issuer)
-    while cert != firstCertName:
-        cert = getNextCert(cert)
+    circle.append(firstIssuer)
+    cert = getNextCert(firstIssuer)
+    while cert != firstIssuer:
         if cert != None:
             circle.append(cert)
         else:
             circle = None
             break
+        cert = getNextCert(cert)
+
     print(circle)
     return circle
 
@@ -74,13 +76,14 @@ def applySignature(filename, signature, cert):
 def checkVouches(filename):
     if os.path.exists(os.path.join(config.certs, filename + ".pickle")):
         with open(os.path.join(config.certs, filename + ".pickle"), "rb") as vouchFile:
-            vouchList = pickle.load(vouchFile)
+            vouchList = list(pickle.load(vouchFile))
+            print(vouchList)
             for vouch in vouchList:
                 with open(os.path.join(config.certs, vouch[0] + ".crt"), "r") as certFile:
                     certObject = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, certFile.read())
                     validity = verify.verify(filename, certObject, vouch[1])
                     if validity == False:
-                        vouchList = vouchList.remove(vouch)
+                        vouchList.remove(vouch)
             if vouchList == None:
                 vouchList = []
             return vouchList
