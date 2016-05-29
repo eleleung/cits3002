@@ -51,6 +51,8 @@ def makeCircle(name):
     return circle
 
 def genCircles(filename, minCircleSize):
+    if minCircleSize == "-n":
+        minCircleSize = 0
     vouches = checkVouches(filename)
     circles = []
     for vouch in vouches:
@@ -66,7 +68,6 @@ def applySignature(filename, signature, cert):
     result = verify.verify(filename, cert, signature)
     if result:
         previousVouches = checkVouches(filename)
-        previousVouches = list(set(previousVouches))
         for pair in cert.get_subject().get_components():
             if b'CN' == pair[0]:
                 previousVouches.append([pair[1].decode(), signature])

@@ -34,7 +34,7 @@ def acceptIncoming(conn):
         return(-1)
     # Split the command string into a list.
     command = shlex.split(command)
-    #print(command)
+    print(command)
     # Parse the command string
     control.parse(command, client)
 

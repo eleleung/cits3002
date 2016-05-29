@@ -28,16 +28,18 @@ def parse(command, client):
             # check all requested names and append to a list
             for i, j in enumerate(command):
                 if j == "-n":
-                    names.append(command[i + 1].strip("\x00"))
-            names.remove("\x00")
+                    names.append(command[i + 1])
             # Remove any circles which do not contain the specified names
-            if names != []:
-                for circle in circles:
-                    for name in names:
-                        if name not in circle:
+            print(circles)
+            print(names)
+            for circle in circles:
+                for name in names:
+                    if name != '\x00':
+                        if name.strip("\x00") not in circle:
                             circles.remove(circle)
             largestCircle = 0
             # find the largest circle and send the file to the client, if no circle large enough exists; send error ande close socket
+            print(circles)
             if circles != []:
                 for circle in circles:
                     if len(circle) > largestCircle:
@@ -52,15 +54,12 @@ def parse(command, client):
     # search for -u flag and prepare to receive a certificate from the client any uploaded file is vouched for by the uploader
     if "-u" in command:
         fileOperations.receive_file(client, command[(command.index("-u") + 1)], config.certs)
-    # search for -v flag and
+    # search for -v flag and send file to the client
     if "-v" in command:
-        if not os.path.exists(os.path.join(os.getcwd() + command[(command.index("-f") + 1)])):
-            client.send(config.pcolours.ERROR + "ERROR: File not found")
+        if not os.path.exists(os.path.join(os.getcwd() + command[(command.index("-v") + 1)].strip("\x00"))):
+            client.send(config.pcolours.FAIL + "ERROR: File not found")
             client.close()
         else:
-            parse(["-f", command[(command.index("-v") + 1)]])
-    if "-s" in command:
-        clientCertObject = client.get_peer_certificate()
-        fileSecurity.applySignature(command[(command.index("-s") + 1)], command[(command.index("-s") + 2), clientCertObject])
+            fileOperations.send_file(client, command[(command.index("-v") + 1)], largestCircle)
     client.close()
     print(config.pcolours.OKBLUE + "Client disconnected")

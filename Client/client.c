@@ -132,7 +132,6 @@ int read_file_from_server(SSL *ssl, const char filenm[]) {
 
 	// receiving file name
 	printf(BLUE "Client receiving %s from the Server...%s\n", filenm, RESET);
-	//SSL_write(ssl, filenm, strlen(filenm));
 
 	FILE *fp = fopen(filenm, "wb"); // a or w?
 	if (fp == NULL) {
@@ -150,14 +149,14 @@ int read_file_from_server(SSL *ssl, const char filenm[]) {
 		if (writebytes < nbytes) {
 			fprintf(stderr, RED "File write failed\n" RESET);
 		}
-		}
+	}
+	
+	if (nbytes == 0) {
+		fprintf(stderr, RED "No file found\n" RESET);
+		return EXIT_FAILURE;
+	}
 
-		if (sizeof(buffer) == 0) {
-			fprintf(stderr, RED "No file found\n" RESET);
-			return EXIT_FAILURE;
-		}
-
-		bzero(buffer, BUFSIZE);
+	bzero(buffer, BUFSIZE);
 
 	if (nbytes < 0) {
 		fprintf(stderr, RED "Can't read from socket\n" RESET);
@@ -370,6 +369,22 @@ int vouch_sign(SSL *ssl, char *rsa_pkey, char *filename) {
 		EVP_PKEY_free(pkey);
 		return EXIT_FAILURE;
 	}
+	// update signature
+	while (data_len > 0) {
+		if (!EVP_SignUpdate(md_ctx, data, data_len)) {
+			fprintf(stderr, "Error: EVP_SignUpdate failed%s\n", RESET);
+			EVP_PKEY_free(pkey);
+			return EXIT_FAILURE;
+		}
+		data_len = fread(data, sizeof(char), BUFSIZE, file);
+	}
+
+	// finalise signing operation
+	if (!EVP_SignFinal(md_ctx, sign, &sign_len, pkey)) {
+		fprintf(stderr, "Error: EVP_SignFinal failed%s\n", RESET);
+		EVP_PKEY_free(pkey);
+		return EXIT_FAILURE;
+	}
 
 	// to print out signature
 	//print_bytes(sign, sizeof(sign));
@@ -465,8 +480,12 @@ int evp_verify(X509 *cert, char *datafile, FILE *sigFileFP) {
 		return EXIT_FAILURE;
 	}
 */
-	if ((EVP_VerifyInit_ex(md_ctx, md, NULL)) != 1) {
+	if ((EVP_DigestInit_ex(md_ctx, md, NULL)) != 1) {
 		printf("Verify init failed\n");
+	}
+	
+	if ((EVP_DigestVerifyInit(md_ctx, NULL, md, NULL, pubKey)) != 1) {
+		printf("DigestVerify init failed\n");
 	}
 	// read in data in sizes of BUFSIZE to generate signature
 	unsigned char *data = malloc(BUFSIZE);
@@ -479,7 +498,7 @@ int evp_verify(X509 *cert, char *datafile, FILE *sigFileFP) {
 		return EXIT_FAILURE;
 	}
 	while (data_len > 0) {
-		if (!EVP_VerifyUpdate(md_ctx, data, data_len)) {
+		if (!EVP_DigestVerifyUpdate(md_ctx, data, data_len)) {
 			fprintf(stderr, "Error: EVP_VerifyUpdate failed%s\n", RESET);
 			EVP_PKEY_free(pubKey);
 			return EXIT_FAILURE;
@@ -492,21 +511,29 @@ int evp_verify(X509 *cert, char *datafile, FILE *sigFileFP) {
 
     unsigned char *sig = malloc(BUFSIZE);
     fread(sig, 1, BUFSIZE, sigFileFP);
-		unsigned int sig_len = 1024;
+		//unsigned int sig_len = 1024;
 		fprintf(stdout, "%lu \n",sizeof(*sig));
     print_bytes(sig, BUFSIZE);
     //print_bytes(pubKey, sizeof(pubKey));
 
+    FILE *fp = fopen("output.txt", "w+");
+    
+    fseek( sigFileFP, 0, SEEK_END );
+    unsigned int file_len = ftell( sigFileFP );
+    fseek( sigFileFP, 0, SEEK_SET );
+    fprintf(stdout, "Sigfile length: %d \n", file_len);
+
     int result;
-    if ((result = EVP_VerifyFinal(md_ctx, sig, BUFSIZE, pubKey)) < 1) {
-    	printf("result: %d\n", result);
-        fprintf(stderr, "EVP_VerifyFinal: Bad signature.\n");
-				ERR_print_errors_fp(stderr);
-        free(sig);
-        free(data);
-        EVP_PKEY_free(pubKey);
-        return EXIT_FAILURE;
-    }
+	if ((result = EVP_DigestVerifyFinal(md_ctx, sig, file_len)) < 1) {
+			fprintf(fp, "result: %d, count: %d\n", result, file_len);
+			fprintf(fp, "EVP_VerifyFinal: Bad signature.\n");
+			ERR_print_errors_fp(fp);
+			//free(sig);
+			//free(data);
+			//EVP_PKEY_free(pubKey);
+			return EXIT_FAILURE;
+	}
+	fclose(fp);
 
     free(data);
     free(sig);
@@ -539,9 +566,6 @@ int fetch(SSL *ssl, char *command, char *filename, char *circleNum, char *vouchN
 	// debug print
 	printf(MAGENTA "Command and filename successfully sent!%s\n", RESET);
 
-	// receive confirmation from server
-	//expect_confirm(ssl);
-
 	// need to change to stdout
 	//read_file_from_server(ssl, filename);
 
@@ -558,6 +582,7 @@ int fetch(SSL *ssl, char *command, char *filename, char *circleNum, char *vouchN
 
 	// now read the data
 	if ((read_file_from_server(ssl, filename)) != 0) {
+		fprintf(stderr, RED "Server Response: %s\n", sign);		
 		return EXIT_FAILURE;
 	}
 
@@ -641,14 +666,12 @@ int vouch_file(SSL *ssl, char *command, char *filename, char *rsa_pkey, char *ce
 	// send concat-ed string
 	// snprintf(prefix, sizeof(prefix), "%s: %s: %s", argv[0], cmd_argv[0], cmd_argv[1]);
 	char *cmd_and_file;
-	int length = strlen(command)+strlen(filename)+strlen(cert)+1;
+	int length = strlen(command)+strlen(filename)+1;
 
 	if ((cmd_and_file = malloc(length)) != NULL) {
 		bzero(cmd_and_file, (length));
 		strcat(cmd_and_file, command);
 		strcat(cmd_and_file, filename);
-		strcat(cmd_and_file, " ");
-		strcat(cmd_and_file, cert);
 	}
 	else {
 		fprintf(stderr, RED "Malloc Failed %s\n", RESET);
@@ -678,10 +701,7 @@ int vouch_file(SSL *ssl, char *command, char *filename, char *rsa_pkey, char *ce
 	}
 
 	// send the cert
-	//SSL_write("")
-
-	// receive confirmation from server
-	expect_confirm(ssl);
+	write_file_to_server(ssl, cert);
 
 	free(cmd_and_file);
 	return EXIT_SUCCESS;
@@ -764,7 +784,7 @@ int main(int argc, char * argv[]) {
 					fprintf(stderr, "-v command requires two arguments\n");
 					break;
 				}
-				if ((vouch_file(ssl, "-v", filename, "clientkey.pem", cert)) != 0) {
+				if ((vouch_file(ssl, "-v ", filename, "clientkey.pem", cert)) != 0) {
 					fprintf(stderr, RED "-v command failed %s\n", RESET);
 					break;
 				}

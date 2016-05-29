@@ -5,6 +5,21 @@ from OpenSSL import SSL, crypto
 import verify
 import fileSecurity
 
+def receive_cert(client):
+    certString = ""
+    try:
+        data = client.recv(config.payload_size).decode()
+    except SSL.SysCallError:
+        data = ""
+    while data != "":
+        certString = certString + data
+        try:
+            data = client.recv(config.payload_size).decode()
+        except SSL.SysCallError:
+            data = ""
+    print(certString)
+    return crypto.load_certificate(crypto.FILETYPE_PEM, certString)
+
 def send_file(client, filename, largestCircle):
     filePath = os.path.join(config.storage, filename)
     print(config.pcolours.OKBLUE + "filename is :" + filePath)
@@ -13,8 +28,12 @@ def send_file(client, filename, largestCircle):
     #data.ljust(1024, " ")
     #client.send(data)
     data = verify.sign(filename)
+    print(data)
     while data:
-        client.send(data)
+        try:
+            client.send(data)
+        except OpenSSL.SSL.SysCallError as e:
+            print("Client closed connection")
         data = sent_file.read(config.payload_size)
     sent_file.close()
     print(config.pcolours.OKGREEN +"File sent")
@@ -29,6 +48,7 @@ def receive_file(client, filename, root, size):
     except SSL.SysCallError as msg:
         print(config.pcolours.WARNING +"First frame is end of file ssl error:" + str(msg))
         return(-1)
+    print(signature)
     clientCertObject = client.get_peer_certificate()
     try:
         data = client.recv(config.payload_size)
@@ -53,5 +73,11 @@ def listFiles(client):
     string = ""
     for dirName, subdirList, fileList in os.walk(rootDir):
         for fname in fileList:
-            string = string + '    ++    %s' % fname + "\t\t\t++    Circumference:" + "\n"
+            circles  = fileSecurity.genCircles(fname, "0")
+            for circle in circles:
+                circles[circles.index(circle)] = len(circle)
+            circles.sort()
+            if circles == []:
+                circles = [0]
+            string = string + '    ++    %s' % fname + "\t\t\t++    Circumference:" + str(circles[0]) + "\n"
     client.send(string)

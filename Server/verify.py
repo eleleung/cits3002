@@ -9,7 +9,6 @@ import SSLOperations
 
 def checkcerts(connection, x509, errnum, errdepth, ok):
     if not ok:
-        print(config.pcolours.WARNING + "Certificate not in trusted certs")
         return True
     else:
         return True
@@ -32,7 +31,10 @@ def sign(filename):
         pkey = crypto.load_privatekey(crypto.FILETYPE_PEM, certFile.read())
     filePath = os.path.join(config.storage, filename)
     dataFile = open(filePath.strip("\x00"), "rb")
+    data = dataFile.read()
+    print(data)
     signature = crypto.sign(pkey, dataFile.read(), config.digest)
+    print(data)
     with open("sig.txt", "wb+") as sig:
         sig.write(signature)
     dataFile.close()
