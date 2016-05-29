@@ -458,83 +458,63 @@ int evp_verify(X509 *cert, char *datafile, FILE *sigFileFP) {
     const EVP_MD *md = EVP_get_digestbyname("SHA256");
 
     EVP_PKEY *pubKey = X509_get_pubkey(cert); //public key
-    //EVP_PKEY_missing_parameters(pubKey);
-    if ((X509_verify(cert, pubKey)) != 1) {
-    	printf("sig check failed\n");
-    }
 
     if (!md) {
     	printf("Error creating message digest\n");
     	return EXIT_FAILURE;
     }
-
-    /*if ((EVP_VerifyInit_ex(md_ctx, md, NULL)) != 1) {
-    	printf("Error initialising verify\n");
-    }*/
-
-    EVP_MD_CTX *md_ctx = EVP_MD_CTX_create();
 /*
+    if ((EVP_VerifyInit_ex(md_ctx, md, NULL)) != 1) {
+    	printf("Error initialising verify\n");
+    }
+*/
+    EVP_MD_CTX *md_ctx = EVP_MD_CTX_create();
     if (!EVP_VerifyInit(md_ctx, EVP_sha256())) {
 		fprintf(stderr, "Error: EVP_VerifyInit failed%s\n", RESET);
 		EVP_PKEY_free(pubKey);
 		return EXIT_FAILURE;
 	}
-*/
+/*
 	if ((EVP_DigestInit_ex(md_ctx, md, NULL)) != 1) {
 		printf("Verify init failed\n");
 	}
-	
-	if ((EVP_DigestVerifyInit(md_ctx, NULL, md, NULL, pubKey)) != 1) {
+
+	if ((EVP_VerifyInit(md_ctx, md)) != 1) {
 		printf("DigestVerify init failed\n");
 	}
+*/
 	// read in data in sizes of BUFSIZE to generate signature
 	unsigned char *data = malloc(BUFSIZE);
 	unsigned int data_len = fread(data, 1, BUFSIZE, data_file);
-	//fprintf(stdout, "%s", data);
-	printf("check that fread on data works: size of data_len is %d\n", data_len);
 	if (!data) {
 		fprintf(stderr, RED "Error: Couldn't malloc memory%s\n", RESET);
 		EVP_PKEY_free(pubKey);
 		return EXIT_FAILURE;
 	}
 	while (data_len > 0) {
-		if (!EVP_DigestVerifyUpdate(md_ctx, data, data_len)) {
+		if (!EVP_VerifyUpdate(md_ctx, data, data_len)) {
 			fprintf(stderr, "Error: EVP_VerifyUpdate failed%s\n", RESET);
 			EVP_PKEY_free(pubKey);
 			return EXIT_FAILURE;
 		}
 		data_len = fread(data, sizeof(char), BUFSIZE, data_file);
-		//fprintf(stdout, "%s", data);
 	}
-	//printf("data fed in to EVP_VerifyUpdate to gen sig: ");
-	//print_bytes(data, sizeof(data));
 
     unsigned char *sig = malloc(BUFSIZE);
-    fread(sig, 1, BUFSIZE, sigFileFP);
+    int sig_length = fread(sig, 1, BUFSIZE, sigFileFP);
 		//unsigned int sig_len = 1024;
 		fprintf(stdout, "%lu \n",sizeof(*sig));
     print_bytes(sig, BUFSIZE);
     //print_bytes(pubKey, sizeof(pubKey));
 
-    FILE *fp = fopen("output.txt", "w+");
-    
-    fseek( sigFileFP, 0, SEEK_END );
-    unsigned int file_len = ftell( sigFileFP );
-    fseek( sigFileFP, 0, SEEK_SET );
-    fprintf(stdout, "Sigfile length: %d \n", file_len);
-
     int result;
-	if ((result = EVP_DigestVerifyFinal(md_ctx, sig, file_len)) < 1) {
-			fprintf(fp, "result: %d, count: %d\n", result, file_len);
-			fprintf(fp, "EVP_VerifyFinal: Bad signature.\n");
-			ERR_print_errors_fp(fp);
+	if ((result = EVP_VerifyFinal(md_ctx, sig, sig_length, pubKey)) < 1) {
+			fprintf(stderr, "EVP_VerifyFinal: Bad signature.\n");
 			//free(sig);
 			//free(data);
 			//EVP_PKEY_free(pubKey);
 			return EXIT_FAILURE;
 	}
-	fclose(fp);
-
     free(data);
     free(sig);
     EVP_PKEY_free(pubKey);
