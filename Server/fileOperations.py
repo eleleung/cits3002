@@ -64,31 +64,40 @@ def receive_file(client, filename, root, size):
     except SSL.SysCallError as msg:
         print(config.pcolours.WARNING +"First frame is end of file ssl error:" + str(msg))
         return(-1)
-    # get the cert of the client 
+    # get the cert of the client
     clientCertObject = client.get_peer_certificate()
+    # receive the first dataframe from the client
     try:
         data = client.recv(config.payload_size)
     except SSL.SysCallError:
         data = ""
+    # while the client sends data, read data
     while data != "":
         recv_file.write(data)
         try:
             data = client.recv(config.payload_size)
         except SSL.SysCallError:
-            data = ""
+            break
+    # close the file
     recv_file.close()
+    # verify the file received from the client is unaltered
     if verify.verify(filename, clientCertObject, signature) == True:
         print(config.pcolours.OKGREEN + "File is verified")
     else:
         print(config.pcolours.WARNING + "File could not be verified")
+        return -1
+    #Vouch for the file with the uploaders signature
     fileSecurity.applySignature(filename, signature, clientCertObject)
     print(config.pcolours.OKGREEN +"File received")
-
+    return 0
+# send a file list with maximum circumference to the client
 def listFiles(client):
     rootDir = config.storage
     string = ""
+    # scan the directory
     for dirName, subdirList, fileList in os.walk(rootDir):
         for fname in fileList:
+            # get max circles
             circles  = fileSecurity.genCircles(fname, "0")
             for circle in circles:
                 circles[circles.index(circle)] = len(circle)
@@ -96,4 +105,5 @@ def listFiles(client):
             if circles == []:
                 circles = [0]
             string = string + '    ++    %s' % fname + "\t\t\t++    Circumference:" + str(circles[0]) + "\n"
+    # send to client
     client.send(string)

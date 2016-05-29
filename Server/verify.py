@@ -15,12 +15,14 @@ import os
 import fileOperations
 import SSLOperations
 
+# workaround for untrusted certs
 def checkcerts(connection, x509, errnum, errdepth, ok):
     if not ok:
         return True
     else:
         return True
 
+# verify a signature
 def verify(filename, cert, signature):
     filePath = os.path.join(config.storage, filename)
     dataFile = open(filePath.strip("\x00"), "rb")
@@ -34,6 +36,7 @@ def verify(filename, cert, signature):
     else:
         return False
 
+# sign a file
 def sign(filename):
     with open(os.path.join(config.root, 'server.pkey')) as certFile:
         pkey = crypto.load_privatekey(crypto.FILETYPE_PEM, certFile.read())
