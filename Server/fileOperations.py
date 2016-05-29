@@ -13,50 +13,58 @@ from OpenSSL import SSL, crypto
 import verify
 import fileSecurity
 
+# receive a string from the client and load it as a cert, returns the x509 object
 def receive_cert(client):
     certString = ""
+    # try to read from the socket, exit if client has closed socket
     try:
         data = client.recv(config.payload_size).decode()
     except SSL.SysCallError:
         data = ""
+    # read socket data while socket is open by client, exit when socket closed
     while data != "":
         certString = certString + data
         try:
             data = client.recv(config.payload_size).decode()
         except SSL.SysCallError:
             data = ""
-    print(certString)
+    # return x509 object
     return crypto.load_certificate(crypto.FILETYPE_PEM, certString)
 
+# send a file to the client
 def send_file(client, filename, largestCircle):
+    # open file to send
     filePath = os.path.join(config.storage, filename)
     print(config.pcolours.OKBLUE + "filename is :" + filePath)
     sent_file = open(filePath.strip("\x00"), "rb")
-    #data = "Circle of circumference " + str(largestCircle) + "\nContaining all requested names"
-    #data.ljust(1024, " ")
-    #client.send(data)
+    # sign file to send to be verified at the other end
     data = verify.sign(filename)
-    print(data)
+    # while there is data to send; send data, error if client closes prematurely
     while data:
         try:
             client.send(data)
         except OpenSSL.SSL.SysCallError as e:
             print("Client closed connection")
+            return -1
         data = sent_file.read(config.payload_size)
+    # close file once it has been fully sent
     sent_file.close()
     print(config.pcolours.OKGREEN +"File sent")
+    return 0
 
+# receive a file from the client
 def receive_file(client, filename, root, size):
+    # create/replace file to be received
     filePath = os.path.join(root, filename)
     print(config.pcolours.OKBLUE + "Filename is :" + filePath)
     recv_file = open(filePath.strip("\x00"), "wb+")
-    # write data to file
+    # receive the signature
     try:
         signature = client.recv(config.payload_size)
     except SSL.SysCallError as msg:
         print(config.pcolours.WARNING +"First frame is end of file ssl error:" + str(msg))
         return(-1)
-    print(signature)
+    # get the cert of the client 
     clientCertObject = client.get_peer_certificate()
     try:
         data = client.recv(config.payload_size)

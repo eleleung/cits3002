@@ -9,6 +9,7 @@
 import os
 import sys
 
+# create global variables
 def init():
     global backlog
     backlog = 5
@@ -29,7 +30,7 @@ def init():
     global port
     port = 3434
 
-
+# create colour class
 class pcolours:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'

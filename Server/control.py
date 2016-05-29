@@ -46,7 +46,7 @@ def parse(command, client):
                         if name.strip("\x00") not in circle:
                             circles.remove(circle)
             largestCircle = 0
-            # find the largest circle and send the file to the client, if no circle large enough exists; send error ande close socket
+            # find the largest circle and send the file to the client, if no circle large enough exists; send error and close socket
             print(circles)
             if circles != []:
                 for circle in circles:
@@ -62,7 +62,7 @@ def parse(command, client):
     # search for -u flag and prepare to receive a certificate from the client any uploaded file is vouched for by the uploader
     if "-u" in command:
         fileOperations.receive_file(client, command[(command.index("-u") + 1)], config.certs)
-    # search for -v flag and send file to the client
+    # search for -v flag and send file to the client for them to return with -a flag
     if "-v" in command:
         if not os.path.exists(os.path.join(os.getcwd() + command[(command.index("-v") + 1)].strip("\x00"))):
             client.send(config.pcolours.FAIL + "ERROR: File not found")
