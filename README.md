@@ -1,4 +1,4 @@
-# cits3002
+A networks and security assignment.
 
 ## Participants:
 <table>
